@@ -9,34 +9,84 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
-    // Fetch the webpage content
-    let pageContent = '';
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      });
+    // Normalize URL (ensure https)
+    let normalizedUrl = url;
+    if (url.startsWith('http://')) {
+      normalizedUrl = url.replace('http://', 'https://');
+    }
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch URL: ${response.status}`);
+    // Fetch the webpage content with better error handling
+    let pageContent = '';
+    let fetchError: string | null = null;
+
+    const fetchWithTimeout = async (fetchUrl: string, timeout = 15000) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const response = await fetch(fetchUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+          },
+          redirect: 'follow',
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    };
+
+    try {
+      // Try HTTPS first
+      let response = await fetchWithTimeout(normalizedUrl);
+
+      // If HTTPS fails with certain errors, try original URL
+      if (!response.ok && url.startsWith('http://')) {
+        try {
+          response = await fetchWithTimeout(url);
+        } catch {
+          // Stick with original error
+        }
       }
 
-      const html = await response.text();
-      // Strip HTML tags for text content (basic extraction)
-      pageContent = html
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 15000); // Limit content length for API
-    } catch (fetchError) {
-      console.error('Fetch error:', fetchError);
-      return NextResponse.json(
-        { error: 'Failed to fetch webpage content' },
-        { status: 400 }
-      );
+      if (!response.ok) {
+        fetchError = `Website returned status ${response.status}`;
+        // Still try to extract what we can from the URL
+        pageContent = '';
+      } else {
+        const html = await response.text();
+        // Strip HTML tags for text content (basic extraction)
+        pageContent = html
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 15000); // Limit content length for API
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      if (errorMessage.includes('abort')) {
+        fetchError = 'Website took too long to respond (timeout)';
+      } else if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
+        fetchError = 'Website not found - check the URL';
+      } else if (errorMessage.includes('certificate') || errorMessage.includes('SSL')) {
+        fetchError = 'Website has SSL/security issues';
+      } else {
+        fetchError = `Could not reach website: ${errorMessage}`;
+      }
+      console.error('Fetch error:', err);
+    }
+
+    // If we couldn't get content and there's no API key, return basic info from URL
+    if (!pageContent && fetchError) {
+      const basicGrant = generateBasicGrantFromUrl(url, fetchError);
+      return NextResponse.json({ grant: basicGrant });
     }
 
     // Check if Claude API key is available
@@ -146,6 +196,47 @@ ${pageContent}`
       { status: 500 }
     );
   }
+}
+
+function generateBasicGrantFromUrl(url: string, errorMessage: string): Grant {
+  let orgName = 'Unknown Foundation';
+  try {
+    const urlObj = new URL(url);
+    orgName = urlObj.hostname
+      .replace('www.', '')
+      .split('.')[0]
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  } catch {
+    // Use default
+  }
+
+  // Detect funder type from URL
+  let funderType: Grant['funderType'] = 'Private Foundation';
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes('.gov')) {
+    funderType = 'Government';
+  } else if (lowerUrl.includes('communityfoundation') || lowerUrl.includes('community-foundation')) {
+    funderType = 'Community Foundation';
+  }
+
+  return {
+    id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    organizationName: orgName,
+    website: url,
+    budgetMin: 0,
+    budgetMax: 0,
+    deadline: '',
+    deadlineNotes: `Note: ${errorMessage}. Visit the website directly for grant information.`,
+    location: 'See Website',
+    artsDiscipline: 'General Arts',
+    fundingType: 'Project-Based',
+    funderType: funderType,
+    eligibility: 'Visit website for eligibility details.',
+    overview: `Could not automatically analyze this website (${errorMessage}). Please visit ${url} directly to find grant information. Some websites block automated access for security reasons.`,
+    applicationUrl: url,
+  };
 }
 
 function generateMockGrant(url: string, content: string): Grant {
