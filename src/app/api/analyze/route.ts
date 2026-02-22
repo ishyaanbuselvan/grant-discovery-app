@@ -192,43 +192,35 @@ export async function POST(request: NextRequest) {
         max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: `You are an expert grant researcher. Extract COMPLETE grant information from this foundation website. Search the content THOROUGHLY - the information IS there, you need to find it.
+          content: `Extract grant information from this foundation's website. Be thorough and accurate.
 
-YOUR MISSION: Find ALL the details. Read every section carefully.
+1. ORGANIZATION NAME: Official name with proper capitalization
 
-1. ORGANIZATION NAME: Find the official foundation/organization name. Look at headers, footers, "About" sections.
+2. DEADLINES:
+   - Find any dates: "deadline", "due", "submit by", "quarterly", "monthly", "annual cycle"
+   - Rolling grants: Look for patterns like "1st of each month", "quarterly", "Jan/Apr/Jul/Oct"
+   - If you find quarterly mentions, use typical quarter ends: "Mar 31, Jun 30, Sep 30, Dec 31" unless specific dates given
+   - deadlineType: "rolling" (multiple per year), "fixed" (one deadline), "invitation_only"
 
-2. DEADLINES - SEARCH CAREFULLY:
-   - Look for: "deadline", "due date", "submit by", "application period", "cycle", "quarterly", "rolling", "open"
-   - Find SPECIFIC dates mentioned (e.g., "February 15", "first Monday of each quarter")
-   - If quarterly/rolling, list the ACTUAL dates from the site (not made-up ones)
-   - deadlineType: "rolling" (ongoing/multiple cycles), "fixed" (single deadline), "invitation_only"
+3. GRANT AMOUNTS:
+   - Find: "$", "grant range", "awards from", "up to", "between", "typically"
+   - Examples: "$5,000-$50,000", "up to $25,000", "average grant $10,000"
+   - If only one amount found, use it for both min and max
 
-3. GRANT AMOUNTS - LOOK EVERYWHERE:
-   - Search for: "$", "grant size", "award", "funding level", "range", "up to", "between", "maximum", "minimum"
-   - Common places: guidelines page, FAQ, "what we fund", eligibility section
-   - Even phrases like "typically fund $5,000-$25,000" count
+4. LOCATION: City, State from contact/footer/about
 
-4. LOCATION:
-   - Check: footer, contact page, "About Us", address mentions
-   - Format: "City, State" (e.g., "Seattle, WA", "New York, NY")
+5. ELIGIBILITY: 501(c)(3), geographic restrictions, budget requirements, etc.
 
-5. ELIGIBILITY - BE THOROUGH:
-   - Look for: "eligible", "must be", "requirements", "who can apply", "501(c)(3)", geographic limits
-   - Include: tax status, location requirements, budget size limits, years in operation
+6. OVERVIEW: 2-3 sentences about what they fund
 
-6. OVERVIEW: Summarize what they fund, who can apply, and any focus areas.
-
-The content below comes from MULTIPLE PAGES of their website. The information IS in there - find it!
-
-Return ONLY JSON:
+Return ONLY valid JSON:
 {
   "organizationName": "Proper Name",
   "budgetMin": number,
   "budgetMax": number,
   "deadline": "YYYY-MM-DD or empty",
   "deadlineType": "fixed" | "rolling" | "invitation_only",
-  "rollingDates": "Actual dates from site like 'Mar 1, Jun 1, Sep 1, Dec 1' or quarterly pattern found",
+  "rollingDates": "For rolling: list cycle dates like 'Mar 31, Jun 30, Sep 30, Dec 31' or 'Monthly on the 15th'",
   "deadlineNotes": "Any additional deadline details, LOI requirements, etc.",
   "location": "City, State (from contact/footer/about page)",
   "artsDiscipline": "Classical Music" | "General Arts" | "Performing Arts" | "Music Education" | "Humanities",
