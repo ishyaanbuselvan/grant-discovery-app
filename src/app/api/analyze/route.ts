@@ -222,28 +222,29 @@ export async function POST(request: NextRequest) {
         max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: `Extract grant information from this foundation's website. Search thoroughly for specific details.
+          content: `Extract grant information from this foundation's website.
 
 1. ORGANIZATION NAME: Official name with proper capitalization
 
-2. DEADLINES - FIND THE ACTUAL DATES:
-   - Search for specific dates/months mentioned: "March 15", "first Friday of each month", "January and July"
-   - Look for: "deadline", "due date", "applications accepted", "cycle", "submit by"
-   - ONLY use dates you actually find - do NOT use generic "Mar 31, Jun 30, Sep 30, Dec 31" unless those exact dates are stated
-   - If rolling but no specific dates given, just say "Rolling - see website for current cycle"
+2. DEADLINES:
+   - Look for deadline dates, cycles, or patterns
+   - If "quarterly" is mentioned, use: "Jan 15, Apr 15, Jul 15, Oct 15" (typical quarterly cycle)
+   - If "monthly" is mentioned, use: "15th of each month"
+   - If "rolling" or "ongoing" with no dates, use deadlineType "rolling" and put "Ongoing" in rollingDates
    - deadlineType: "rolling", "fixed", or "invitation_only"
 
-3. GRANT AMOUNTS - SEARCH HARD FOR THESE:
-   - Look for ANY dollar amounts: "$5,000", "$10K", "five thousand dollars"
-   - Search phrases: "grant size", "award amount", "funding range", "grants of", "awards up to", "typical grant", "average award", "minimum/maximum"
-   - Check FAQ sections, guidelines, eligibility pages
-   - Even partial info helps: "grants typically under $50,000" = budgetMax: 50000
+3. GRANT AMOUNTS:
+   - Find dollar amounts mentioned anywhere
+   - Common patterns: "$5,000 to $50,000", "up to $25,000", "grants range from", "typical award"
+   - If you find ANY number, use it. Example: "supports projects up to $10,000" = budgetMax: 10000
+   - If no max found but min found, set max = min * 5 as estimate
+   - If truly nothing found, estimate based on foundation size (small local = 5000-25000, large national = 10000-100000)
 
-4. LOCATION: City, State from contact/footer/about page
+4. LOCATION: City, State from contact/footer/about
 
-5. ELIGIBILITY: 501(c)(3), geographic focus, budget size requirements, years operating
+5. ELIGIBILITY: 501(c)(3), geographic limits, budget requirements
 
-6. OVERVIEW: What they fund, who can apply, focus areas
+6. OVERVIEW: 2-3 sentences on what they fund
 
 Return ONLY valid JSON:
 {
@@ -252,7 +253,7 @@ Return ONLY valid JSON:
   "budgetMax": number,
   "deadline": "YYYY-MM-DD or empty",
   "deadlineType": "fixed" | "rolling" | "invitation_only",
-  "rollingDates": "ONLY actual dates found on site, or 'Rolling - see website' if no specific dates given",
+  "rollingDates": "Cycle dates found OR reasonable estimate like 'Quarterly' or 'Ongoing'",
   "deadlineNotes": "Any additional deadline details, LOI requirements, etc.",
   "location": "City, State (from contact/footer/about page)",
   "artsDiscipline": "Classical Music" | "General Arts" | "Performing Arts" | "Music Education" | "Humanities",
