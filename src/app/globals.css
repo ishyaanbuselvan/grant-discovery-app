@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+:root {
+  --midnight: #1a2744;
+  --midnight-light: #243352;
+  --midnight-dark: #0f1a2e;
+  --gold: #c9a962;
+  --gold-light: #ddc383;
+  --gold-dark: #a68b4b;
+  --slate: #64748b;
+  --slate-light: #94a3b8;
+  --slate-dark: #475569;
+  --background: #faf9f7;
+  --background-alt: #f5f3ef;
+  --foreground: #1a2744;
+  --card-bg: #ffffff;
+  --card-border: #e8e4dc;
+}
+
+@theme inline {
+  --color-midnight: var(--midnight);
+  --color-midnight-light: var(--midnight-light);
+  --color-midnight-dark: var(--midnight-dark);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dark: var(--gold-dark);
+  --color-slate: var(--slate);
+  --color-slate-light: var(--slate-light);
+  --color-slate-dark: var(--slate-dark);
+  --color-background: var(--background);
+  --color-background-alt: var(--background-alt);
+  --color-foreground: var(--foreground);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-weight: 600;
+}
+
+.heading-accent::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-light));
+  border-radius: 2px;
+}
+
+.grant-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(26,39,68,0.04);
+  transition: all 0.3s ease;
+}
+
+.grant-card:hover {
+  border-color: var(--gold);
+  box-shadow: 0 8px 24px rgba(26,39,68,0.08);
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  color: white;
+  font-weight: 500;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(201,169,98,0.4);
+}
+
+.btn-secondary {
+  background: var(--midnight);
+  color: white;
+  font-weight: 500;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+}
+
+.btn-secondary:hover {
+  background: var(--midnight-light);
+}
