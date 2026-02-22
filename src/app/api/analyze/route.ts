@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         const rootDomain = getRootDomain(normalizedUrl);
         pageContent = `=== ${normalizedUrl} ===\n${extractText(html).slice(0, 8000)}\n\n`;
 
-        // Extract and fetch additional pages
+        // Extract and fetch additional pages - be aggressive
         const linkRegex = /href=["']([^"']+)["']/gi;
         const links: string[] = [];
         let match;
@@ -84,26 +84,51 @@ export async function POST(request: NextRequest) {
           const href = match[1];
           if (href.startsWith('/') && !href.startsWith('//')) {
             links.push(rootDomain + href);
+          } else if (href.startsWith(rootDomain)) {
+            links.push(href);
           }
         }
 
-        const grantKeywords = ['grant', 'fund', 'apply', 'deadline', 'eligib', 'guideline'];
-        const grantLinks = [...new Set(links)]
-          .filter(link => grantKeywords.some(kw => link.toLowerCase().includes(kw)))
-          .slice(0, 4);
+        // Keywords that indicate grant information
+        const grantKeywords = ['grant', 'fund', 'apply', 'deadline', 'eligib', 'guideline', 'program', 'award', 'nonprofit', 'application', 'criteria', 'requirement', 'submit', 'proposal', 'letter-of-inquiry', 'loi', 'rfa', 'rfp'];
 
-        // Fetch additional pages
-        for (const link of grantLinks) {
+        // Also try common paths that might not be linked
+        const commonPaths = [
+          '/grants', '/grants/', '/grantmaking', '/funding', '/apply',
+          '/grants/guidelines', '/grants/apply', '/grants/eligibility',
+          '/for-grantseekers', '/for-nonprofits', '/programs',
+          '/what-we-fund', '/how-to-apply', '/application-process',
+          '/about', '/about-us', '/contact', '/contact-us'
+        ];
+
+        const foundLinks = [...new Set(links)]
+          .filter(link => grantKeywords.some(kw => link.toLowerCase().includes(kw)));
+
+        const allLinksToTry = [...new Set([
+          ...foundLinks,
+          ...commonPaths.map(p => rootDomain + p)
+        ])].slice(0, 10);
+
+        // Fetch additional pages in parallel for speed
+        const fetchPromises = allLinksToTry.map(async (link) => {
+          if (link === normalizedUrl) return null;
           try {
-            const resp = await fetchWithTimeout(link, 5000);
+            const resp = await fetchWithTimeout(link, 4000);
             if (resp.ok) {
               const pageHtml = await resp.text();
-              pageContent += `=== ${link} ===\n${extractText(pageHtml).slice(0, 3000)}\n\n`;
+              const text = extractText(pageHtml);
+              if (text.length > 200) {
+                return `=== ${link} ===\n${text.slice(0, 4000)}\n\n`;
+              }
             }
           } catch {
             // Skip failed pages
           }
-        }
+          return null;
+        });
+
+        const additionalPages = await Promise.all(fetchPromises);
+        additionalPages.forEach(p => { if (p) pageContent += p; });
       }
 
       if (!pageContent) {
@@ -143,18 +168,34 @@ export async function POST(request: NextRequest) {
         max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: `Extract grant information from this foundation website. BE ACCURATE - only use info you find.
+          content: `You are an expert grant researcher. Extract COMPLETE grant information from this foundation website. Search the content THOROUGHLY - the information IS there, you need to find it.
 
-RULES:
-1. ORGANIZATION NAME: Exact name with proper spacing (e.g., "The Seattle Foundation")
-2. DEADLINES:
-   - Find ALL dates mentioned. For rolling/quarterly, list all (e.g., "Jan 31, Apr 30, Jul 31, Oct 31")
-   - Use 2025/2026 dates only. Convert past years to next occurrence.
-   - deadlineType: "rolling" (multiple per year), "fixed" (one deadline), "invitation_only"
-3. LOCATION: Find actual city/state from contact info or footer
-4. AMOUNTS: Find specific dollar ranges mentioned
-5. ELIGIBILITY: List all requirements found (501c3, geographic, budget size, etc.)
-6. IF NOT FOUND: Use "" or 0. Don't guess.
+YOUR MISSION: Find ALL the details. Read every section carefully.
+
+1. ORGANIZATION NAME: Find the official foundation/organization name. Look at headers, footers, "About" sections.
+
+2. DEADLINES - SEARCH CAREFULLY:
+   - Look for: "deadline", "due date", "submit by", "application period", "cycle", "quarterly", "rolling", "open"
+   - Find SPECIFIC dates mentioned (e.g., "February 15", "first Monday of each quarter")
+   - If quarterly/rolling, list the ACTUAL dates from the site (not made-up ones)
+   - deadlineType: "rolling" (ongoing/multiple cycles), "fixed" (single deadline), "invitation_only"
+
+3. GRANT AMOUNTS - LOOK EVERYWHERE:
+   - Search for: "$", "grant size", "award", "funding level", "range", "up to", "between", "maximum", "minimum"
+   - Common places: guidelines page, FAQ, "what we fund", eligibility section
+   - Even phrases like "typically fund $5,000-$25,000" count
+
+4. LOCATION:
+   - Check: footer, contact page, "About Us", address mentions
+   - Format: "City, State" (e.g., "Seattle, WA", "New York, NY")
+
+5. ELIGIBILITY - BE THOROUGH:
+   - Look for: "eligible", "must be", "requirements", "who can apply", "501(c)(3)", geographic limits
+   - Include: tax status, location requirements, budget size limits, years in operation
+
+6. OVERVIEW: Summarize what they fund, who can apply, and any focus areas.
+
+The content below comes from MULTIPLE PAGES of their website. The information IS in there - find it!
 
 Return ONLY JSON:
 {
@@ -163,9 +204,9 @@ Return ONLY JSON:
   "budgetMax": number,
   "deadline": "YYYY-MM-DD or empty",
   "deadlineType": "fixed" | "rolling" | "invitation_only",
-  "rollingDates": "Jan 31, Apr 30, Jul 31, Oct 31",
-  "deadlineNotes": "extra info",
-  "location": "City, State",
+  "rollingDates": "Actual dates from site like 'Mar 1, Jun 1, Sep 1, Dec 1' or quarterly pattern found",
+  "deadlineNotes": "Any additional deadline details, LOI requirements, etc.",
+  "location": "City, State (from contact/footer/about page)",
   "artsDiscipline": "Classical Music" | "General Arts" | "Performing Arts" | "Music Education" | "Humanities",
   "fundingType": "General Operating" | "Project-Based" | "Capital" | "Fellowship" | "Commissioning",
   "funderType": "Government" | "Private Foundation" | "Corporate" | "Community Foundation" | "Service Organization",
