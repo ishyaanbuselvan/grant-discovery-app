@@ -1,9 +1,46 @@
 'use client';
 import Link from 'next/link';
+import Script from 'next/script';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Luminarts",
+  "description": "AI-powered grant discovery platform for classical music and performing arts organizations. Search 50+ verified grants, analyze foundation websites with AI, and export to Excel.",
+  "url": "https://luminarts.vercel.app",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "featureList": [
+    "Search 50+ curated classical music and arts grants",
+    "AI-powered foundation website analysis",
+    "Filter by deadline, budget, location, and funder type",
+    "Export saved grants to Excel",
+    "Real-time deadline tracking"
+  ],
+  "creator": {
+    "@type": "Organization",
+    "name": "Friday Morning Music Club",
+    "url": "https://fmmc.org"
+  },
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "Classical music organizations, performing arts nonprofits, music educators"
+  }
+};
 
 export default function Home() {
   return (
     <div className="min-h-screen">
+      <Script
+        id="json-ld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section className="min-h-[90vh] flex flex-col items-center justify-center px-4 relative">
         <div className="text-center max-w-3xl">
           <div className="text-7xl mb-6 text-[var(--gold)]">&#9835;</div>
@@ -26,7 +63,7 @@ export default function Home() {
             </Link>
           </div>
           <div className="grid grid-cols-3 gap-8 text-center max-w-xl mx-auto">
-            <div><div className="text-4xl font-bold text-[var(--gold)]">65+</div><div className="text-sm text-[var(--slate)]">Curated Grants</div></div>
+            <div><div className="text-4xl font-bold text-[var(--gold)]">50+</div><div className="text-sm text-[var(--slate)]">Verified Grants</div></div>
             <div><div className="text-4xl font-bold text-[var(--gold)]">AI</div><div className="text-sm text-[var(--slate)]">Grant Analysis</div></div>
             <div><div className="text-4xl font-bold text-[var(--gold)]">Excel</div><div className="text-sm text-[var(--slate)]">Export Ready</div></div>
           </div>
@@ -43,7 +80,7 @@ export default function Home() {
               <div className="text-5xl text-[var(--gold)] mb-6">&#9834;</div>
               <h2 className="text-4xl font-bold text-[var(--midnight)] mb-4" style={{ fontFamily: 'var(--font-cormorant), Georgia, serif' }}>Advanced Grant Discovery</h2>
               <p className="text-lg text-[var(--slate-dark)] mb-6 leading-relaxed">
-                Browse our curated database of <strong>65+ grant opportunities</strong> specifically selected for classical music and performing arts organizations. Filter by deadline, award amount, location, arts discipline, and funding type.
+                Browse our curated database of <strong>50+ verified grant opportunities</strong> specifically selected for classical music and performing arts organizations. Filter by deadline, award amount, location, arts discipline, and funder type.
               </p>
               <ul className="space-y-3 text-[var(--slate-dark)] mb-8">
                 <li className="flex items-center space-x-3"><span className="text-[var(--gold)]">&#10003;</span><span>Smart deadline filtering with preparation window calculator</span></li>
@@ -58,7 +95,7 @@ export default function Home() {
                 <div className="bg-white rounded-lg p-4 border border-[var(--card-border)]"><div className="text-sm font-medium text-[var(--midnight)]">National Endowment for the Arts</div><div className="text-xs text-[var(--slate)]">$10,000 - $100,000 | Washington, DC</div></div>
                 <div className="bg-white rounded-lg p-4 border border-[var(--card-border)]"><div className="text-sm font-medium text-[var(--midnight)]">Chamber Music America</div><div className="text-xs text-[var(--slate)]">$5,000 - $20,000 | New York, NY</div></div>
                 <div className="bg-white rounded-lg p-4 border border-[var(--card-border)]"><div className="text-sm font-medium text-[var(--midnight)]">Aaron Copland Fund for Music</div><div className="text-xs text-[var(--slate)]">$1,000 - $20,000 | New York, NY</div></div>
-                <div className="text-center text-sm text-[var(--slate)] mt-4">+ 62 more grants</div>
+                <div className="text-center text-sm text-[var(--slate)] mt-4">+ 47 more grants</div>
               </div>
             </div>
           </div>
@@ -124,9 +161,9 @@ export default function Home() {
       <section className="py-20 px-4 bg-[var(--midnight)] text-white">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold mb-6" style={{ fontFamily: 'var(--font-cormorant), Georgia, serif' }}>Ready to Discover Your Next Grant?</h2>
-          <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">Stop spending hours searching through foundation websites. Start with our curated database of 65+ grants or analyze any foundation URL with AI.</p>
+          <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">Stop spending hours searching through foundation websites. Start with our curated database of 50+ verified grants or analyze any foundation URL with AI.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/search" className="bg-[var(--gold)] text-[var(--midnight-dark)] font-medium text-lg px-8 py-4 rounded-lg inline-flex items-center justify-center space-x-2 hover:bg-[var(--gold-light)]"><span>&#9834;</span><span>Search 65+ Grants</span></Link>
+            <Link href="/search" className="bg-[var(--gold)] text-[var(--midnight-dark)] font-medium text-lg px-8 py-4 rounded-lg inline-flex items-center justify-center space-x-2 hover:bg-[var(--gold-light)]"><span>&#9834;</span><span>Search 50+ Grants</span></Link>
             <Link href="/analyze" className="bg-white/10 text-white font-medium text-lg px-8 py-4 rounded-lg inline-flex items-center justify-center space-x-2 hover:bg-white/20 border border-white/20"><span>&#10022;</span><span>Analyze Foundation Links</span></Link>
           </div>
         </div>
