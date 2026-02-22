@@ -62,7 +62,17 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
                 <span className="mr-1">&#128205;</span>
                 {grant.location}
               </span>
-              {grant.deadline ? (
+              {grant.deadlineType === 'invitation_only' ? (
+                <span className="flex items-center text-amber-600">
+                  <span className="mr-1">&#128197;</span>
+                  By Invitation Only
+                </span>
+              ) : grant.deadlineType === 'rolling' ? (
+                <span className="flex items-center text-emerald-600">
+                  <span className="mr-1">&#128197;</span>
+                  Rolling: {grant.rollingDates || (grant.deadline ? `Next: ${formatDate(grant.deadline)}` : 'See website')}
+                </span>
+              ) : grant.deadline ? (
                 <span className={`flex items-center ${daysLeft && daysLeft <= 30 ? 'text-red-600 font-medium' : ''}`}>
                   <span className="mr-1">&#128197;</span>
                   {formatDate(grant.deadline)}
@@ -71,9 +81,9 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
                   )}
                 </span>
               ) : (
-                <span className="flex items-center text-emerald-600">
+                <span className="flex items-center text-[var(--slate)]">
                   <span className="mr-1">&#128197;</span>
-                  Rolling / By Invitation
+                  See website for deadline
                 </span>
               )}
               <span className="px-2 py-0.5 text-xs rounded bg-[var(--midnight)]/10 text-[var(--midnight)]">

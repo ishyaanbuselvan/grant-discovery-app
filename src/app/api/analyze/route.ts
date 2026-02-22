@@ -54,6 +54,70 @@ export async function POST(request: NextRequest) {
     // Common grant-related paths to try if root domain works
     const grantPaths = ['/grants', '/funding', '/programs', '/apply', '/grantmaking', '/for-nonprofits'];
 
+    // Additional pages to crawl for more info
+    const additionalPaths = [
+      '/grants',
+      '/grants/guidelines',
+      '/grants/deadlines',
+      '/grants/eligibility',
+      '/grants/apply',
+      '/grants/overview',
+      '/grants/faq',
+      '/grantmaking',
+      '/grantmaking/guidelines',
+      '/how-to-apply',
+      '/application-process',
+      '/funding',
+      '/funding/apply',
+      '/funding/guidelines',
+      '/programs',
+      '/programs/grants',
+      '/programs/arts',
+      '/for-nonprofits',
+      '/for-grantseekers',
+      '/apply',
+      '/eligibility',
+      '/about',
+      '/about-us',
+      '/contact',
+      '/contact-us',
+    ];
+
+    // Extract text content from HTML
+    const extractText = (html: string): string => {
+      return html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    // Extract links from HTML
+    const extractLinks = (html: string, baseUrl: string): string[] => {
+      const linkRegex = /href=["']([^"']+)["']/gi;
+      const links: string[] = [];
+      let match;
+      while ((match = linkRegex.exec(html)) !== null) {
+        const href = match[1];
+        if (href.startsWith('/') && !href.startsWith('//')) {
+          links.push(baseUrl + href);
+        } else if (href.startsWith(baseUrl)) {
+          links.push(href);
+        }
+      }
+      return [...new Set(links)]; // Remove duplicates
+    };
+
+    // Filter for grant-related links
+    const filterGrantLinks = (links: string[]): string[] => {
+      const grantKeywords = ['grant', 'fund', 'apply', 'deadline', 'eligib', 'program', 'guideline', 'application'];
+      return links.filter(link => {
+        const lowerLink = link.toLowerCase();
+        return grantKeywords.some(keyword => lowerLink.includes(keyword));
+      }).slice(0, 15); // Get more grant-related pages
+    };
+
     let actualUrlUsed = normalizedUrl;
     let urlNote = '';
 
@@ -117,14 +181,44 @@ export async function POST(request: NextRequest) {
         pageContent = '';
       } else {
         const html = await response.text();
-        // Strip HTML tags for text content (basic extraction)
-        pageContent = html
-          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 15000); // Limit content length for API
+        const rootDomain = getRootDomain(actualUrlUsed);
+
+        // Extract main page content
+        let allContent = `=== MAIN PAGE: ${actualUrlUsed} ===\n${extractText(html)}\n\n`;
+
+        // Find grant-related links on the main page
+        const pageLinks = extractLinks(html, rootDomain);
+        const grantLinks = filterGrantLinks(pageLinks);
+
+        // Prioritize ACTUAL links found on the page, then try common paths as backup
+        const pathsToTry = [...new Set([
+          ...grantLinks,  // Real links found on the page come first
+          ...additionalPaths.map(p => rootDomain + p)  // Common paths as backup
+        ])].slice(0, 20); // Crawl up to 20 additional pages
+
+        // Fetch additional pages in parallel
+        const additionalFetches = pathsToTry.map(async (pageUrl) => {
+          if (pageUrl === actualUrlUsed) return null;
+          try {
+            const resp = await fetchWithTimeout(pageUrl, 5000);
+            if (resp.ok) {
+              const pageHtml = await resp.text();
+              return `=== PAGE: ${pageUrl} ===\n${extractText(pageHtml).slice(0, 3000)}\n\n`;
+            }
+          } catch {
+            // Ignore errors for additional pages
+          }
+          return null;
+        });
+
+        const additionalContents = await Promise.all(additionalFetches);
+        additionalContents.forEach(content => {
+          if (content) allContent += content;
+        });
+
+        // Limit total content for API
+        pageContent = allContent.slice(0, 25000);
+        console.log(`Crawled ${1 + additionalContents.filter(Boolean).length} pages`);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -198,29 +292,42 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'user',
-            content: `You are analyzing a grant foundation's website to extract grant information for performing arts and music organizations. Extract as much specific detail as possible.
+            content: `Extract grant information from this foundation website. BE EXTREMELY ACCURATE.
 
-IMPORTANT INSTRUCTIONS:
-- For budgetMin/budgetMax: Look for specific dollar amounts mentioned. Extract actual numbers, not ranges like "varies". If you see "$5,000 to $50,000", use 5000 and 50000.
-- For deadline: Look for specific dates like "March 15, 2026" or "February 1". Format as YYYY-MM-DD. If it says "rolling" or "ongoing", leave empty.
-- For location: Find the organization's headquarters city and state (e.g., "New York, NY", "Washington, DC").
-- For eligibility: Be specific - mention 501(c)(3) requirements, geographic restrictions, budget size limits, years in operation needed, etc.
-- For overview: Summarize what this grant actually funds, who it's for, and any special focus areas.
+CRITICAL INSTRUCTIONS:
 
-Return ONLY a valid JSON object (no markdown, no explanation, no code blocks) with these exact fields:
+1. ORGANIZATION NAME: Use the EXACT official name with proper spacing and capitalization (e.g., "The Seattle Foundation" not "Theseattlefoundation" or "SEATTLE FOUNDATION")
+
+2. DEADLINES - THIS IS CRITICAL:
+   - Look carefully for ALL deadline dates mentioned (application deadlines, LOI deadlines, quarterly dates)
+   - For ROLLING deadlines: List ALL upcoming dates (e.g., "Jan 30, Apr 30, Jul 30, Oct 30")
+   - For FIXED deadlines: Use the next upcoming date in 2025 or 2026
+   - NEVER use dates from 2022, 2023, or 2024 - those are PAST
+   - If dates repeat quarterly/annually, extrapolate to 2025/2026
+   - deadlineType: Use "rolling" if multiple dates per year, "fixed" if one deadline, "invitation_only" if by invitation
+
+3. LOCATION: Find the foundation's ACTUAL headquarters address. Look for "Contact Us", footer, or "About" sections. Extract City, State (e.g., "Seattle, WA"). NEVER say "See Website".
+
+4. GRANT AMOUNTS: Find SPECIFIC dollar amounts. Look for "grant range", "award amounts", "funding levels".
+
+5. ELIGIBILITY: Find SPECIFIC requirements - 501(c)(3) status, geographic limits, budget size, years operating, etc.
+
+Return ONLY valid JSON (no markdown, no code blocks):
 
 {
-  "organizationName": "Full official name of the foundation/organization",
-  "budgetMin": number (minimum grant amount in dollars, 0 only if truly not stated),
-  "budgetMax": number (maximum grant amount in dollars, 0 only if truly not stated),
-  "deadline": "YYYY-MM-DD format, or empty string if rolling/ongoing/not specified",
-  "deadlineNotes": "Additional deadline info like 'Two cycles: Spring and Fall' or 'Letter of intent due 2 weeks prior'",
-  "location": "City, State (organization headquarters)",
+  "organizationName": "Properly Formatted Organization Name",
+  "budgetMin": number,
+  "budgetMax": number,
+  "deadline": "YYYY-MM-DD of NEXT upcoming deadline",
+  "deadlineType": "fixed" | "rolling" | "invitation_only",
+  "rollingDates": "For rolling: list all dates like 'Jan 30, Apr 30, Jul 30, Oct 30'",
+  "deadlineNotes": "Any additional deadline info",
+  "location": "City, State",
   "artsDiscipline": "Classical Music" | "General Arts" | "Humanities" | "Performing Arts" | "Music Education",
   "fundingType": "General Operating" | "Project-Based" | "Capital" | "Fellowship" | "Commissioning",
   "funderType": "Government" | "Private Foundation" | "Corporate" | "Community Foundation" | "Service Organization",
-  "eligibility": "Specific eligibility requirements - be detailed about who can apply",
-  "overview": "3-4 sentence summary: What does this grant fund? Who is it for? What's unique about it?"
+  "eligibility": "Specific requirements found on site",
+  "overview": "2-3 sentence summary of what this grant funds and who it's for"
 }
 
 Webpage URL: ${actualUrlUsed}
@@ -267,14 +374,17 @@ ${pageContent}`
       budgetMin: grantData.budgetMin || 0,
       budgetMax: grantData.budgetMax || 0,
       deadline: grantData.deadline || '',
+      deadlineType: grantData.deadlineType || (grantData.deadline ? 'fixed' : undefined),
+      rollingDates: grantData.rollingDates || '',
       deadlineNotes: urlNote ? `${urlNote} ${grantData.deadlineNotes || ''}`.trim() : (grantData.deadlineNotes || ''),
-      location: grantData.location || 'Unknown',
+      location: grantData.location || '',
       artsDiscipline: grantData.artsDiscipline || 'General Arts',
       fundingType: grantData.fundingType || 'Project-Based',
       funderType: grantData.funderType || 'Private Foundation',
-      eligibility: grantData.eligibility || 'See website for eligibility requirements.',
-      overview: grantData.overview || 'Grant information extracted from website. Visit the website for complete details.',
+      eligibility: grantData.eligibility || '',
+      overview: grantData.overview || '',
       applicationUrl: actualUrlUsed,
+      isInvitationOnly: grantData.deadlineType === 'invitation_only',
     };
 
     return NextResponse.json({ grant, debug: 'claude_ai_used' });

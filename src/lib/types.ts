@@ -4,9 +4,11 @@ export interface Grant {
   website: string;
   budgetMin: number;
   budgetMax: number;
-  deadline: string;
-  deadlineNotes?: string; // For rolling deadlines, multiple cycles, or special notes
-  location: string;
+  deadline: string; // Next upcoming deadline in YYYY-MM-DD format, or empty if invitation-only
+  deadlineType?: 'fixed' | 'rolling' | 'invitation_only';
+  rollingDates?: string; // For rolling: "Jan 30, Apr 30, Jul 30, Oct 30" or "Quarterly" etc.
+  deadlineNotes?: string; // Additional notes about deadlines
+  location: string; // City, State of organization headquarters
   artsDiscipline: 'Classical Music' | 'General Arts' | 'Humanities' | 'Performing Arts' | 'Music Education';
   fundingType: 'General Operating' | 'Project-Based' | 'Capital' | 'Fellowship' | 'Commissioning';
   funderType: 'Government' | 'Private Foundation' | 'Corporate' | 'Community Foundation' | 'Service Organization';
