@@ -227,18 +227,19 @@ export async function POST(request: NextRequest) {
 1. ORGANIZATION NAME: Official name with proper capitalization
 
 2. DEADLINES:
-   - Look for deadline dates, cycles, or patterns
-   - If "quarterly" is mentioned, use: "Jan 15, Apr 15, Jul 15, Oct 15" (typical quarterly cycle)
-   - If "monthly" is mentioned, use: "15th of each month"
-   - If "rolling" or "ongoing" with no dates, use deadlineType "rolling" and put "Ongoing" in rollingDates
+   - Search the content for SPECIFIC dates mentioned by THIS foundation
+   - Look for exact dates like "February 1", "March 15", "first Monday of April"
+   - If they say "quarterly" - find THEIR specific quarterly dates, not generic ones
+   - rollingDates should contain the ACTUAL dates from the site, like "Feb 1, May 1, Aug 1, Nov 1"
+   - If no specific dates found, put "Quarterly" or "Monthly" or "Rolling" - do NOT invent specific dates
    - deadlineType: "rolling", "fixed", or "invitation_only"
 
 3. GRANT AMOUNTS:
-   - Find dollar amounts mentioned anywhere
-   - Common patterns: "$5,000 to $50,000", "up to $25,000", "grants range from", "typical award"
-   - If you find ANY number, use it. Example: "supports projects up to $10,000" = budgetMax: 10000
-   - If no max found but min found, set max = min * 5 as estimate
-   - If truly nothing found, estimate based on foundation size (small local = 5000-25000, large national = 10000-100000)
+   - Search thoroughly for dollar amounts: "$5,000", "$50,000", "up to $25K"
+   - Look in: guidelines, FAQ, eligibility, "what we fund", program descriptions
+   - Use ANY amount found: "grants up to $10,000" = budgetMax: 10000
+   - If only one amount found, use for both min and max
+   - Only use 0 if you truly searched everywhere and found nothing
 
 4. LOCATION: City, State from contact/footer/about
 
@@ -253,7 +254,7 @@ Return ONLY valid JSON:
   "budgetMax": number,
   "deadline": "YYYY-MM-DD or empty",
   "deadlineType": "fixed" | "rolling" | "invitation_only",
-  "rollingDates": "Cycle dates found OR reasonable estimate like 'Quarterly' or 'Ongoing'",
+  "rollingDates": "ACTUAL dates from THIS site like 'Feb 1, May 1, Aug 1, Nov 1' OR just 'Quarterly'/'Rolling' if no dates",
   "deadlineNotes": "Any additional deadline details, LOI requirements, etc.",
   "location": "City, State (from contact/footer/about page)",
   "artsDiscipline": "Classical Music" | "General Arts" | "Performing Arts" | "Music Education" | "Humanities",
