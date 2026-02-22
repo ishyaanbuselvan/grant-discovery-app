@@ -15,7 +15,7 @@ export default function AnalyzePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const { savedGrants, saveGrant } = useSavedGrants();
+  const { savedGrants, addGrant } = useSavedGrants();
 
   const analyzeUrls = async () => {
     const urlList = urls
@@ -86,7 +86,7 @@ export default function AnalyzePage() {
 
   const saveAllGrants = () => {
     unsavedResults.forEach((result) => {
-      saveGrant(result.grant);
+      addGrant(result.grant);
     });
   };
 
