@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Grant } from '@/lib/types';
 import GrantCard from '@/components/GrantCard';
+import { useSavedGrants } from '@/context/SavedGrantsContext';
 
 interface AnalysisResult {
   grant: Grant;
@@ -14,6 +15,7 @@ export default function AnalyzePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const { savedGrants, saveGrant } = useSavedGrants();
 
   const analyzeUrls = async () => {
     const urlList = urls
@@ -77,6 +79,16 @@ export default function AnalyzePage() {
   };
 
   const successfulResults = results.filter((r) => r.status === 'success');
+
+  const unsavedResults = successfulResults.filter(
+    (r) => !savedGrants.some((sg) => sg.id === r.grant.id)
+  );
+
+  const saveAllGrants = () => {
+    unsavedResults.forEach((result) => {
+      saveGrant(result.grant);
+    });
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -150,9 +162,26 @@ export default function AnalyzePage() {
             <h2 className="text-xl font-semibold text-[var(--midnight)]" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
               Analysis Results
             </h2>
-            <p className="text-sm text-[var(--slate)]">
-              {successfulResults.length} successful, {results.length - successfulResults.length} failed
-            </p>
+            <div className="flex items-center space-x-4">
+              <p className="text-sm text-[var(--slate)]">
+                {successfulResults.length} successful, {results.length - successfulResults.length} failed
+              </p>
+              {unsavedResults.length > 0 && (
+                <button
+                  onClick={saveAllGrants}
+                  className="btn-primary px-4 py-2 text-sm flex items-center space-x-2"
+                >
+                  <span>&#9829;</span>
+                  <span>Save All ({unsavedResults.length})</span>
+                </button>
+              )}
+              {unsavedResults.length === 0 && successfulResults.length > 0 && (
+                <span className="text-sm text-emerald-600 flex items-center space-x-1">
+                  <span>&#10003;</span>
+                  <span>All saved</span>
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="space-y-4">
