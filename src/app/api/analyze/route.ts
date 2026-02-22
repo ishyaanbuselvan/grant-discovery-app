@@ -15,33 +15,58 @@ export async function POST(request: NextRequest) {
       normalizedUrl = url.replace('http://', 'https://');
     }
 
-    const fetchWithTimeout = async (fetchUrl: string, timeout = 15000, retries = 2) => {
+    const fetchWithTimeout = async (fetchUrl: string, timeout = 20000, retries = 3) => {
+      const userAgents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+      ];
+
       for (let attempt = 0; attempt <= retries; attempt++) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
         try {
           const response = await fetch(fetchUrl, {
             headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'User-Agent': userAgents[attempt % userAgents.length],
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
               'Accept-Language': 'en-US,en;q=0.9',
-              'Cache-Control': 'no-cache',
+              'Accept-Encoding': 'gzip, deflate, br',
+              'Connection': 'keep-alive',
+              'Upgrade-Insecure-Requests': '1',
             },
             redirect: 'follow',
             signal: controller.signal,
           });
           clearTimeout(timeoutId);
-          if (response.ok || attempt === retries) {
-            return response;
-          }
+          if (response.ok) return response;
         } catch (err) {
           clearTimeout(timeoutId);
           if (attempt === retries) throw err;
-          // Wait a bit before retry
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
         }
       }
       throw new Error('All retries failed');
+    };
+
+    // Try multiple URL variations
+    const tryMultipleUrls = async (baseUrl: string): Promise<{ response: Response; url: string } | null> => {
+      const urlVariations = [
+        baseUrl,
+        baseUrl.replace('https://', 'https://www.'),
+        baseUrl.replace('https://www.', 'https://'),
+        baseUrl.replace('https://', 'http://'),
+      ].filter((v, i, a) => a.indexOf(v) === i); // Remove duplicates
+
+      for (const url of urlVariations) {
+        try {
+          const response = await fetchWithTimeout(url, 15000, 1);
+          if (response.ok) return { response, url };
+        } catch {
+          // Try next variation
+        }
+      }
+      return null;
     };
 
     const extractText = (html: string): string => {
@@ -66,10 +91,10 @@ export async function POST(request: NextRequest) {
     let actualUrlUsed = normalizedUrl;
 
     try {
-      // Fetch main page
-      const response = await fetchWithTimeout(normalizedUrl);
+      // Fetch main page - try multiple URL variations
+      let result = await tryMultipleUrls(normalizedUrl);
 
-      if (!response.ok) {
+      if (!result) {
         // Try root domain and common paths
         const rootDomain = getRootDomain(normalizedUrl);
         const fallbackUrls = [
@@ -78,22 +103,27 @@ export async function POST(request: NextRequest) {
           rootDomain + '/grantmaking',
           rootDomain + '/funding',
           rootDomain + '/programs',
+          rootDomain + '/for-grantseekers',
         ];
 
         for (const fallbackUrl of fallbackUrls) {
-          try {
-            const fallbackResponse = await fetchWithTimeout(fallbackUrl, 10000, 1);
-            if (fallbackResponse.ok) {
-              const html = await fallbackResponse.text();
-              pageContent = `=== ${fallbackUrl} ===\n${extractText(html).slice(0, 8000)}`;
-              actualUrlUsed = fallbackUrl;
-              break;
-            }
-          } catch {
-            // Try next fallback
+          result = await tryMultipleUrls(fallbackUrl);
+          if (result) {
+            actualUrlUsed = result.url;
+            break;
           }
         }
       }
+
+      if (!result) {
+        return NextResponse.json({
+          grant: generateBasicGrant(url, 'Could not connect to website after multiple attempts'),
+          debug: 'all_fetches_failed'
+        });
+      }
+
+      const response = result.response;
+      actualUrlUsed = result.url;
 
       if (response.ok) {
         const html = await response.text();
