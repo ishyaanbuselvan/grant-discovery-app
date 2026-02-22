@@ -41,14 +41,71 @@ export async function POST(request: NextRequest) {
       }
     };
 
+    // Extract root domain from URL
+    const getRootDomain = (inputUrl: string): string => {
+      try {
+        const urlObj = new URL(inputUrl);
+        return `${urlObj.protocol}//${urlObj.hostname}`;
+      } catch {
+        return inputUrl;
+      }
+    };
+
+    // Common grant-related paths to try if root domain works
+    const grantPaths = ['/grants', '/funding', '/programs', '/apply', '/grantmaking', '/for-nonprofits'];
+
+    let actualUrlUsed = normalizedUrl;
+    let urlNote = '';
+
     try {
-      // Try HTTPS first
+      // Try the original URL first
       let response = await fetchWithTimeout(normalizedUrl);
 
-      // If HTTPS fails with certain errors, try original URL
+      // If original URL fails, try smart fallbacks
+      if (!response.ok) {
+        const rootDomain = getRootDomain(normalizedUrl);
+
+        // Only try fallbacks if we're not already at root
+        if (normalizedUrl !== rootDomain && normalizedUrl !== rootDomain + '/') {
+          console.log(`Original URL failed (${response.status}), trying root domain: ${rootDomain}`);
+
+          // Try root domain first
+          try {
+            const rootResponse = await fetchWithTimeout(rootDomain);
+            if (rootResponse.ok) {
+              response = rootResponse;
+              actualUrlUsed = rootDomain;
+              urlNote = `Note: Original URL returned ${response.status}, analyzed homepage instead.`;
+            } else {
+              // Try common grant paths
+              for (const path of grantPaths) {
+                try {
+                  const pathUrl = rootDomain + path;
+                  const pathResponse = await fetchWithTimeout(pathUrl, 8000);
+                  if (pathResponse.ok) {
+                    response = pathResponse;
+                    actualUrlUsed = pathUrl;
+                    urlNote = `Note: Original URL unavailable, found grant info at ${path}`;
+                    break;
+                  }
+                } catch {
+                  // Continue to next path
+                }
+              }
+            }
+          } catch {
+            // Root domain also failed, stick with original error
+          }
+        }
+      }
+
+      // If HTTPS fails with certain errors, try original HTTP URL
       if (!response.ok && url.startsWith('http://')) {
         try {
           response = await fetchWithTimeout(url);
+          if (response.ok) {
+            actualUrlUsed = url;
+          }
         } catch {
           // Stick with original error
         }
@@ -71,16 +128,41 @@ export async function POST(request: NextRequest) {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      if (errorMessage.includes('abort')) {
-        fetchError = 'Website took too long to respond (timeout)';
-      } else if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
-        fetchError = 'Website not found - check the URL';
-      } else if (errorMessage.includes('certificate') || errorMessage.includes('SSL')) {
-        fetchError = 'Website has SSL/security issues';
-      } else {
-        fetchError = `Could not reach website: ${errorMessage}`;
+
+      // Try root domain as last resort for network errors
+      const rootDomain = getRootDomain(normalizedUrl);
+      if (normalizedUrl !== rootDomain) {
+        try {
+          const rootResponse = await fetchWithTimeout(rootDomain);
+          if (rootResponse.ok) {
+            const html = await rootResponse.text();
+            pageContent = html
+              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 15000);
+            actualUrlUsed = rootDomain;
+            urlNote = 'Note: Specific page unavailable, analyzed homepage instead.';
+          }
+        } catch {
+          // Root also failed
+        }
       }
-      console.error('Fetch error:', err);
+
+      if (!pageContent) {
+        if (errorMessage.includes('abort')) {
+          fetchError = 'Website took too long to respond (timeout)';
+        } else if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
+          fetchError = 'Website not found - domain does not exist';
+        } else if (errorMessage.includes('certificate') || errorMessage.includes('SSL')) {
+          fetchError = 'Website has SSL/security issues';
+        } else {
+          fetchError = `Could not reach website: ${errorMessage}`;
+        }
+        console.error('Fetch error:', err);
+      }
     }
 
     // If we couldn't get content and there's no API key, return basic info from URL
@@ -94,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     if (!apiKey) {
       // Return mock data for demo purposes when no API key
-      const mockGrant = generateMockGrant(url, pageContent);
+      const mockGrant = generateMockGrant(actualUrlUsed, pageContent, urlNote);
       return NextResponse.json({ grant: mockGrant });
     }
 
@@ -137,7 +219,8 @@ Return ONLY a valid JSON object (no markdown, no explanation, no code blocks) wi
   "overview": "3-4 sentence summary: What does this grant fund? Who is it for? What's unique about it?"
 }
 
-Webpage URL: ${url}
+Webpage URL: ${actualUrlUsed}
+Original URL submitted: ${url}
 Webpage Content:
 ${pageContent}`
           }
@@ -174,18 +257,18 @@ ${pageContent}`
     const grant: Grant = {
       id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       organizationName: grantData.organizationName || 'Unknown Organization',
-      website: url,
+      website: actualUrlUsed,
       budgetMin: grantData.budgetMin || 0,
       budgetMax: grantData.budgetMax || 0,
       deadline: grantData.deadline || '',
-      deadlineNotes: grantData.deadlineNotes || '',
+      deadlineNotes: urlNote ? `${urlNote} ${grantData.deadlineNotes || ''}`.trim() : (grantData.deadlineNotes || ''),
       location: grantData.location || 'Unknown',
       artsDiscipline: grantData.artsDiscipline || 'General Arts',
       fundingType: grantData.fundingType || 'Project-Based',
       funderType: grantData.funderType || 'Private Foundation',
       eligibility: grantData.eligibility || 'See website for eligibility requirements.',
       overview: grantData.overview || 'Grant information extracted from website. Visit the website for complete details.',
-      applicationUrl: url,
+      applicationUrl: actualUrlUsed,
     };
 
     return NextResponse.json({ grant });
@@ -239,7 +322,7 @@ function generateBasicGrantFromUrl(url: string, errorMessage: string): Grant {
   };
 }
 
-function generateMockGrant(url: string, content: string): Grant {
+function generateMockGrant(url: string, content: string, urlNote?: string): Grant {
   // Extract organization name from URL or content
   let orgName = 'Unknown Foundation';
   try {
@@ -297,7 +380,7 @@ function generateMockGrant(url: string, content: string): Grant {
     budgetMin: amounts[0] || 5000,
     budgetMax: amounts[amounts.length - 1] || 50000,
     deadline: deadline,
-    deadlineNotes: deadlineNotes || 'No API key configured. Add ANTHROPIC_API_KEY to .env for detailed AI analysis.',
+    deadlineNotes: urlNote ? `${urlNote} ${deadlineNotes}`.trim() : (deadlineNotes || 'No API key configured. Add ANTHROPIC_API_KEY to .env for detailed AI analysis.'),
     location: 'See Website',
     artsDiscipline: 'General Arts',
     fundingType: 'Project-Based',
