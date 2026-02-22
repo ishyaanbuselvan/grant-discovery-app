@@ -15,24 +15,33 @@ export async function POST(request: NextRequest) {
       normalizedUrl = url.replace('http://', 'https://');
     }
 
-    const fetchWithTimeout = async (fetchUrl: string, timeout = 12000) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      try {
-        const response = await fetch(fetchUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          },
-          redirect: 'follow',
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        return response;
-      } catch (err) {
-        clearTimeout(timeoutId);
-        throw err;
+    const fetchWithTimeout = async (fetchUrl: string, timeout = 15000, retries = 2) => {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        try {
+          const response = await fetch(fetchUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Cache-Control': 'no-cache',
+            },
+            redirect: 'follow',
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (response.ok || attempt === retries) {
+            return response;
+          }
+        } catch (err) {
+          clearTimeout(timeoutId);
+          if (attempt === retries) throw err;
+          // Wait a bit before retry
+          await new Promise(r => setTimeout(r, 500));
+        }
       }
+      throw new Error('All retries failed');
     };
 
     const extractText = (html: string): string => {
@@ -61,17 +70,32 @@ export async function POST(request: NextRequest) {
       const response = await fetchWithTimeout(normalizedUrl);
 
       if (!response.ok) {
-        // Try root domain
+        // Try root domain and common paths
         const rootDomain = getRootDomain(normalizedUrl);
-        if (normalizedUrl !== rootDomain) {
-          const rootResponse = await fetchWithTimeout(rootDomain);
-          if (rootResponse.ok) {
-            const html = await rootResponse.text();
-            pageContent = `=== ${rootDomain} ===\n${extractText(html).slice(0, 8000)}`;
-            actualUrlUsed = rootDomain;
+        const fallbackUrls = [
+          rootDomain,
+          rootDomain + '/grants',
+          rootDomain + '/grantmaking',
+          rootDomain + '/funding',
+          rootDomain + '/programs',
+        ];
+
+        for (const fallbackUrl of fallbackUrls) {
+          try {
+            const fallbackResponse = await fetchWithTimeout(fallbackUrl, 10000, 1);
+            if (fallbackResponse.ok) {
+              const html = await fallbackResponse.text();
+              pageContent = `=== ${fallbackUrl} ===\n${extractText(html).slice(0, 8000)}`;
+              actualUrlUsed = fallbackUrl;
+              break;
+            }
+          } catch {
+            // Try next fallback
           }
         }
-      } else {
+      }
+
+      if (response.ok) {
         const html = await response.text();
         const rootDomain = getRootDomain(normalizedUrl);
         pageContent = `=== ${normalizedUrl} ===\n${extractText(html).slice(0, 8000)}\n\n`;
@@ -250,12 +274,22 @@ ${pageContent.slice(0, 20000)}`
       });
     }
 
+    // Fix backwards budgets
+    let budgetMin = grantData.budgetMin || 0;
+    let budgetMax = grantData.budgetMax || 0;
+    if (budgetMin > budgetMax && budgetMax > 0) {
+      [budgetMin, budgetMax] = [budgetMax, budgetMin];
+    }
+    if (budgetMin > 0 && budgetMax === 0) {
+      budgetMax = budgetMin;
+    }
+
     const grant: Grant = {
       id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       organizationName: grantData.organizationName || 'Unknown',
       website: actualUrlUsed,
-      budgetMin: grantData.budgetMin || 0,
-      budgetMax: grantData.budgetMax || 0,
+      budgetMin,
+      budgetMax,
       deadline: grantData.deadline || '',
       deadlineType: grantData.deadlineType,
       rollingDates: grantData.rollingDates || '',
