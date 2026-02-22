@@ -174,10 +174,14 @@ export async function POST(request: NextRequest) {
     // Check if Claude API key is available
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
+    console.log('API Key exists:', !!apiKey);
+    console.log('API Key length:', apiKey?.length || 0);
+
     if (!apiKey) {
       // Return mock data for demo purposes when no API key
+      console.log('NO API KEY - using mock data');
       const mockGrant = generateMockGrant(actualUrlUsed, pageContent, urlNote);
-      return NextResponse.json({ grant: mockGrant });
+      return NextResponse.json({ grant: mockGrant, debug: 'no_api_key' });
     }
 
     // Call Claude API to analyze the content
@@ -229,10 +233,11 @@ ${pageContent}`
     });
 
     if (!claudeResponse.ok) {
-      console.error('Claude API error:', await claudeResponse.text());
+      const errorText = await claudeResponse.text();
+      console.error('Claude API error:', errorText);
       // Fallback to mock data
       const mockGrant = generateMockGrant(url, pageContent);
-      return NextResponse.json({ grant: mockGrant });
+      return NextResponse.json({ grant: mockGrant, debug: 'claude_api_failed', error: errorText });
     }
 
     const claudeData = await claudeResponse.json();
@@ -250,8 +255,9 @@ ${pageContent}`
       }
     } catch (parseError) {
       console.error('Parse error:', parseError);
+      console.error('Raw response was:', analysisText);
       const mockGrant = generateMockGrant(url, pageContent);
-      return NextResponse.json({ grant: mockGrant });
+      return NextResponse.json({ grant: mockGrant, debug: 'parse_failed' });
     }
 
     const grant: Grant = {
@@ -271,7 +277,7 @@ ${pageContent}`
       applicationUrl: actualUrlUsed,
     };
 
-    return NextResponse.json({ grant });
+    return NextResponse.json({ grant, debug: 'claude_ai_used' });
   } catch (error) {
     console.error('Analysis error:', error);
     return NextResponse.json(
