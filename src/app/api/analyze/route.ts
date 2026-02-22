@@ -190,20 +190,20 @@ export async function POST(request: NextRequest) {
         const pageLinks = extractLinks(html, rootDomain);
         const grantLinks = filterGrantLinks(pageLinks);
 
-        // Prioritize ACTUAL links found on the page, then try common paths as backup
+        // Prioritize ACTUAL links found on the page, limit to avoid timeout
         const pathsToTry = [...new Set([
-          ...grantLinks,  // Real links found on the page come first
-          ...additionalPaths.map(p => rootDomain + p)  // Common paths as backup
-        ])].slice(0, 20); // Crawl up to 20 additional pages
+          ...grantLinks.slice(0, 5),  // Top 5 grant-related links from page
+          ...additionalPaths.slice(0, 5).map(p => rootDomain + p)  // Top 5 common paths
+        ])].slice(0, 8); // Max 8 additional pages
 
-        // Fetch additional pages in parallel
+        // Fetch additional pages in parallel with short timeout
         const additionalFetches = pathsToTry.map(async (pageUrl) => {
           if (pageUrl === actualUrlUsed) return null;
           try {
-            const resp = await fetchWithTimeout(pageUrl, 5000);
+            const resp = await fetchWithTimeout(pageUrl, 3000); // 3 second timeout
             if (resp.ok) {
               const pageHtml = await resp.text();
-              return `=== PAGE: ${pageUrl} ===\n${extractText(pageHtml).slice(0, 3000)}\n\n`;
+              return `=== PAGE: ${pageUrl} ===\n${extractText(pageHtml).slice(0, 2000)}\n\n`;
             }
           } catch {
             // Ignore errors for additional pages
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Limit total content for API
-        pageContent = allContent.slice(0, 25000);
+        pageContent = allContent.slice(0, 20000);
         console.log(`Crawled ${1 + additionalContents.filter(Boolean).length} pages`);
       }
     } catch (err) {
@@ -367,9 +367,26 @@ ${pageContent}`
       return NextResponse.json({ grant: mockGrant, debug: 'parse_failed' });
     }
 
+    // Fix organization name formatting
+    const formatOrgName = (name: string): string => {
+      if (!name) return 'Unknown Organization';
+      // Add spaces before capital letters if missing (e.g., "TheSeattleFoundation" -> "The Seattle Foundation")
+      let formatted = name.replace(/([a-z])([A-Z])/g, '$1 $2');
+      // Proper title case
+      formatted = formatted
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      // Fix common words that should be lowercase
+      formatted = formatted.replace(/ Of /g, ' of ').replace(/ The /g, ' the ').replace(/ And /g, ' and ').replace(/ For /g, ' for ');
+      // But capitalize first word
+      formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+      return formatted;
+    };
+
     const grant: Grant = {
       id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      organizationName: grantData.organizationName || 'Unknown Organization',
+      organizationName: formatOrgName(grantData.organizationName),
       website: actualUrlUsed,
       budgetMin: grantData.budgetMin || 0,
       budgetMax: grantData.budgetMax || 0,
