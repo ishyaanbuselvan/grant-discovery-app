@@ -1,13 +1,16 @@
 'use client';
 import { useState } from 'react';
 import { Grant } from '@/lib/types';
+import { mockGrants } from '@/lib/mockData';
 import GrantCard from '@/components/GrantCard';
 import { useSavedGrants } from '@/context/SavedGrantsContext';
+import { useDiscoveredGrants } from '@/context/DiscoveredGrantsContext';
 
 interface AnalysisResult {
   grant: Grant;
   status: 'success' | 'error';
   error?: string;
+  addedToDatabase?: boolean;
 }
 
 export default function AnalyzePage() {
@@ -16,6 +19,20 @@ export default function AnalyzePage() {
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const { savedGrants, addGrant } = useSavedGrants();
+  const { addDiscoveredGrant, isGrantDiscovered } = useDiscoveredGrants();
+
+  // Helper to check if URL already exists in mockGrants
+  const isInMockGrants = (website: string): boolean => {
+    const normalizeUrl = (url: string) => {
+      try {
+        return new URL(url).hostname.replace('www.', '').toLowerCase();
+      } catch {
+        return url.toLowerCase();
+      }
+    };
+    const normalized = normalizeUrl(website);
+    return mockGrants.some(g => normalizeUrl(g.website) === normalized);
+  };
 
   const analyzeUrls = async () => {
     const urlList = urls
@@ -50,7 +67,19 @@ export default function AnalyzePage() {
         }
 
         const data = await response.json();
-        newResults.push({ grant: data.grant, status: 'success' });
+        const grant = data.grant;
+
+        // Auto-add to discovered grants if not already in database
+        const alreadyExists = isInMockGrants(grant.website) || isGrantDiscovered(grant.website);
+        if (!alreadyExists && grant.organizationName !== 'Unknown') {
+          addDiscoveredGrant(grant);
+        }
+
+        newResults.push({
+          grant,
+          status: 'success',
+          addedToDatabase: !alreadyExists && grant.organizationName !== 'Unknown'
+        });
       } catch (error) {
         newResults.push({
           grant: {
@@ -188,7 +217,14 @@ export default function AnalyzePage() {
             {results.map((result, index) => (
               <div key={index}>
                 {result.status === 'success' ? (
-                  <GrantCard grant={result.grant} />
+                  <div className="relative">
+                    {result.addedToDatabase && (
+                      <div className="absolute -top-2 -right-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full z-10">
+                        + Added to Database
+                      </div>
+                    )}
+                    <GrantCard grant={result.grant} />
+                  </div>
                 ) : (
                   <div className="grant-card p-5 border-red-200 bg-red-50">
                     <div className="flex items-start space-x-3">

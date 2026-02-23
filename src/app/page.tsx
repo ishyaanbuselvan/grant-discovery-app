@@ -6,7 +6,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
   "name": "Luminarts",
-  "description": "AI-powered grant discovery platform for classical music and performing arts organizations. Search 50+ verified grants, analyze foundation websites with AI, and export to Excel.",
+  "description": "AI-powered grant discovery platform for classical music and performing arts organizations. Search 150+ verified grants, analyze foundation websites with AI, and export to Excel.",
   "url": "https://luminarts.vercel.app",
   "applicationCategory": "BusinessApplication",
   "operatingSystem": "Web",
@@ -16,7 +16,7 @@ const jsonLd = {
     "priceCurrency": "USD"
   },
   "featureList": [
-    "Search 50+ curated classical music and arts grants",
+    "Search 150+ curated classical music and arts grants",
     "AI-powered foundation website analysis",
     "Filter by deadline, budget, location, and funder type",
     "Export saved grants to Excel",
@@ -63,7 +63,7 @@ export default function Home() {
             </Link>
           </div>
           <div className="grid grid-cols-3 gap-8 text-center max-w-xl mx-auto">
-            <div><div className="text-4xl font-bold text-[var(--gold)]">50+</div><div className="text-sm text-[var(--slate)]">Verified Grants</div></div>
+            <div><div className="text-4xl font-bold text-[var(--gold)]">150+</div><div className="text-sm text-[var(--slate)]">Verified Grants</div></div>
             <div><div className="text-4xl font-bold text-[var(--gold)]">AI</div><div className="text-sm text-[var(--slate)]">Grant Analysis</div></div>
             <div><div className="text-4xl font-bold text-[var(--gold)]">Excel</div><div className="text-sm text-[var(--slate)]">Export Ready</div></div>
           </div>
@@ -80,7 +80,7 @@ export default function Home() {
               <div className="text-5xl text-[var(--gold)] mb-6">&#9834;</div>
               <h2 className="text-4xl font-bold text-[var(--midnight)] mb-4" style={{ fontFamily: 'var(--font-cormorant), Georgia, serif' }}>Advanced Grant Discovery</h2>
               <p className="text-lg text-[var(--slate-dark)] mb-6 leading-relaxed">
-                Browse our curated database of <strong>50+ verified grant opportunities</strong> specifically selected for classical music and performing arts organizations. Filter by deadline, award amount, location, arts discipline, and funder type.
+                Browse our curated database of <strong>150+ verified grant opportunities</strong> specifically selected for classical music and performing arts organizations. Filter by deadline, award amount, location, arts discipline, and funder type.
               </p>
               <ul className="space-y-3 text-[var(--slate-dark)] mb-8">
                 <li className="flex items-center space-x-3"><span className="text-[var(--gold)]">&#10003;</span><span>Smart deadline filtering with preparation window calculator</span></li>
@@ -161,9 +161,9 @@ export default function Home() {
       <section className="py-20 px-4 bg-[var(--midnight)] text-white">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold mb-6" style={{ fontFamily: 'var(--font-cormorant), Georgia, serif' }}>Ready to Discover Your Next Grant?</h2>
-          <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">Stop spending hours searching through foundation websites. Start with our curated database of 50+ verified grants or analyze any foundation URL with AI.</p>
+          <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">Stop spending hours searching through foundation websites. Start with our curated database of 150+ verified grants or analyze any foundation URL with AI.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/search" className="bg-[var(--gold)] text-[var(--midnight-dark)] font-medium text-lg px-8 py-4 rounded-lg inline-flex items-center justify-center space-x-2 hover:bg-[var(--gold-light)]"><span>&#9834;</span><span>Search 50+ Grants</span></Link>
+            <Link href="/search" className="bg-[var(--gold)] text-[var(--midnight-dark)] font-medium text-lg px-8 py-4 rounded-lg inline-flex items-center justify-center space-x-2 hover:bg-[var(--gold-light)]"><span>&#9834;</span><span>Search 150+ Grants</span></Link>
             <Link href="/analyze" className="bg-white/10 text-white font-medium text-lg px-8 py-4 rounded-lg inline-flex items-center justify-center space-x-2 hover:bg-white/20 border border-white/20"><span>&#10022;</span><span>Analyze Foundation Links</span></Link>
           </div>
         </div>

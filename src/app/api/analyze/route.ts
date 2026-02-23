@@ -227,14 +227,15 @@ export async function POST(request: NextRequest) {
 
 CRITICAL EXTRACTION RULES:
 
-1. BUDGETS - Search EVERY section for dollar amounts:
-   - Look for: "$", "dollars", "up to", "grants range", "awards of", "funding up to", "maximum", "minimum", "average grant", "grant size", "award amounts"
-   - Check: guidelines pages, FAQ sections, "how to apply" sections, annual reports, grant lists
-   - Patterns: "$5,000-$50,000", "up to $25,000", "typically range from", "awards average", "grants of $X"
-   - If you find ANY dollar amount related to grants, USE IT
-   - If only max found, estimate min as 10-20% of max
-   - If amount unclear, estimate based on funder type (private foundation: $5k-$50k, government: $10k-$100k)
-   - ONLY use 0 if you genuinely found NO monetary information anywhere
+1. BUDGETS - Search AGGRESSIVELY for dollar amounts (THIS IS CRITICAL):
+   - Look for: "$", "dollars", "up to", "grants range", "awards of", "funding up to", "maximum", "minimum", "average grant", "grant size", "award amounts", "typical grant", "grant awards", "funding range"
+   - Check EVERY section: guidelines, FAQ, "how to apply", annual reports, grant lists, past grantees, 990 info
+   - Patterns: "$5,000-$50,000", "up to $25,000", "typically range from", "awards average", "grants of $X", "awarded $X to", "received $X"
+   - If you see past grantee info like "awarded $15,000 to XYZ Org" - USE THAT as a reference
+   - If you find ANY dollar amount related to grants, USE IT - don't skip it
+   - If only max found, min = 10% of max. If only one number, use it for both.
+   - Look for phrases like "grants range from X to Y", "up to $X", "minimum of $X"
+   - DO NOT return 0 unless you searched thoroughly and found NOTHING about money
 
 2. DEADLINES - Find SPECIFIC dates, not generic terms:
    - Search for: "deadline", "due date", "submit by", "applications accepted", "cycle dates", "quarterly deadlines", "next deadline", "application period"
@@ -262,7 +263,12 @@ CRITICAL EXTRACTION RULES:
 
 6. ORGANIZATION NAME - Official name with proper capitalization
 
-7. OVERVIEW - Include:
+7. CONTACT EMAIL - Find grants-related email:
+   - Look for: "grants@", "info@", "apply@", "applications@", "contact us", email in footer
+   - Prefer grants-specific emails over general info emails
+   - Format: just the email address (e.g., "grants@foundation.org")
+
+8. OVERVIEW - Include:
    - What they fund (arts disciplines, project types)
    - Any special focus areas
    - Approximate % of funding for arts if mentioned
@@ -277,6 +283,7 @@ Return ONLY this JSON (no other text):
   "rollingDates": "ACTUAL dates like 'Feb 1, May 1, Aug 1, Nov 1' or 'Last Monday in March' - NOT just 'Quarterly'",
   "deadlineNotes": "Include specific cycle info, eligibility quiz requirements, invitation-only status",
   "location": "City, State",
+  "contactEmail": "grants@example.org or empty string",
   "artsDiscipline": "Classical Music" | "General Arts" | "Performing Arts" | "Music Education" | "Humanities",
   "fundingType": "General Operating" | "Project-Based" | "Capital" | "Fellowship" | "Commissioning",
   "funderType": "Government" | "Private Foundation" | "Corporate" | "Community Foundation" | "Service Organization",
@@ -337,18 +344,22 @@ ${pageContent.slice(0, 22000)}`
       budgetMin = Math.round(budgetMax * 0.1);
     }
 
-    // If still 0/0, estimate based on funder type
+    // If still 0/0, use reasonable estimate based on funder type
+    // Better to show estimate than nothing - user can verify on website
     if (budgetMin === 0 && budgetMax === 0) {
       const funderType = grantData.funderType || 'Private Foundation';
       if (funderType === 'Government') {
-        budgetMin = 10000;
-        budgetMax = 100000;
-      } else if (funderType === 'Corporate') {
         budgetMin = 5000;
-        budgetMax = 50000;
-      } else if (funderType === 'Community Foundation') {
+        budgetMax = 75000;
+      } else if (funderType === 'Corporate') {
         budgetMin = 2500;
         budgetMax = 25000;
+      } else if (funderType === 'Community Foundation') {
+        budgetMin = 1000;
+        budgetMax = 15000;
+      } else if (funderType === 'Service Organization') {
+        budgetMin = 1000;
+        budgetMax = 20000;
       } else {
         // Private Foundation default
         budgetMin = 5000;
@@ -400,6 +411,7 @@ ${pageContent.slice(0, 22000)}`
       rollingDates: grantData.rollingDates || '',
       deadlineNotes: grantData.deadlineNotes || '',
       location,
+      contactEmail: grantData.contactEmail || '',
       artsDiscipline: grantData.artsDiscipline || 'General Arts',
       fundingType: grantData.fundingType || 'Project-Based',
       funderType: grantData.funderType || 'Private Foundation',

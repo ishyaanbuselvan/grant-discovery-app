@@ -4,6 +4,7 @@ import { mockGrants } from '@/lib/mockData';
 import { FilterState, Grant } from '@/lib/types';
 import Filters from '@/components/Filters';
 import GrantCard from '@/components/GrantCard';
+import { useDiscoveredGrants } from '@/context/DiscoveredGrantsContext';
 
 const initialFilters: FilterState = {
   search: '',
@@ -21,10 +22,32 @@ type SortOption = 'deadline' | 'amount-high' | 'amount-low' | 'name';
 export default function SearchPage() {
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [sortBy, setSortBy] = useState<SortOption>('deadline');
+  const { discoveredGrants } = useDiscoveredGrants();
+
+  // Combine mockGrants with discovered grants (user-analyzed)
+  const allGrants = useMemo(() => {
+    const combined = [...mockGrants];
+    // Add discovered grants that aren't duplicates
+    discoveredGrants.forEach(dg => {
+      const normalizeUrl = (url: string) => {
+        try {
+          return new URL(url).hostname.replace('www.', '').toLowerCase();
+        } catch {
+          return url.toLowerCase();
+        }
+      };
+      const dgNormalized = normalizeUrl(dg.website);
+      const isDuplicate = combined.some(g => normalizeUrl(g.website) === dgNormalized);
+      if (!isDuplicate) {
+        combined.push(dg);
+      }
+    });
+    return combined;
+  }, [discoveredGrants]);
 
   const filteredAndSortedGrants = useMemo(() => {
     // First filter
-    const filtered = mockGrants.filter((grant) => {
+    const filtered = allGrants.filter((grant) => {
       // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
@@ -92,7 +115,7 @@ export default function SearchPage() {
     });
 
     return sorted;
-  }, [filters, sortBy]);
+  }, [filters, sortBy, allGrants]);
 
   const resetFilters = () => setFilters(initialFilters);
 
