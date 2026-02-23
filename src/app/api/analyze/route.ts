@@ -210,6 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call Claude
+    const currentYear = new Date().getFullYear();
     const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -219,55 +220,74 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: 'claude-3-haiku-20240307',
-        max_tokens: 2000,
+        max_tokens: 2500,
         messages: [{
           role: 'user',
-          content: `Extract grant information from this foundation's website.
+          content: `You are extracting grant information from a foundation website. Today's year is ${currentYear}. BE THOROUGH - look at ALL sections of the content provided.
 
-1. ORGANIZATION NAME: Official name with proper capitalization
+CRITICAL EXTRACTION RULES:
 
-2. DEADLINES:
-   - Search the content for SPECIFIC dates mentioned by THIS foundation
-   - Look for exact dates like "February 1", "March 15", "first Monday of April"
-   - If they say "quarterly" - find THEIR specific quarterly dates, not generic ones
-   - rollingDates should contain the ACTUAL dates from the site, like "Feb 1, May 1, Aug 1, Nov 1"
-   - If no specific dates found, put "Quarterly" or "Monthly" or "Rolling" - do NOT invent specific dates
-   - deadlineType: "rolling", "fixed", or "invitation_only"
+1. BUDGETS - Search EVERY section for dollar amounts:
+   - Look for: "$", "dollars", "up to", "grants range", "awards of", "funding up to", "maximum", "minimum", "average grant", "grant size", "award amounts"
+   - Check: guidelines pages, FAQ sections, "how to apply" sections, annual reports, grant lists
+   - Patterns: "$5,000-$50,000", "up to $25,000", "typically range from", "awards average", "grants of $X"
+   - If you find ANY dollar amount related to grants, USE IT
+   - If only max found, estimate min as 10-20% of max
+   - If amount unclear, estimate based on funder type (private foundation: $5k-$50k, government: $10k-$100k)
+   - ONLY use 0 if you genuinely found NO monetary information anywhere
 
-3. GRANT AMOUNTS:
-   - Search thoroughly for dollar amounts: "$5,000", "$50,000", "up to $25K"
-   - Look in: guidelines, FAQ, eligibility, "what we fund", program descriptions
-   - Use ANY amount found: "grants up to $10,000" = budgetMax: 10000
-   - If only one amount found, use for both min and max
-   - Only use 0 if you truly searched everywhere and found nothing
+2. DEADLINES - Find SPECIFIC dates, not generic terms:
+   - Search for: "deadline", "due date", "submit by", "applications accepted", "cycle dates", "quarterly deadlines", "next deadline", "application period"
+   - IMPORTANT: If they say "quarterly" or "rolling" - look for the ACTUAL DATES (e.g., "Feb 1, May 1, Aug 1, Nov 1")
+   - Look in: application guidelines, "how to apply", grant cycles, calendar sections
+   - If you find "last Monday in March" or similar, put that EXACT wording in deadlineNotes
+   - ANY date from before ${currentYear} should be updated to ${currentYear} or ${currentYear + 1}
+   - deadlineType options:
+     * "fixed" = single annual deadline
+     * "rolling" = multiple deadlines per year OR accepts anytime
+     * "invitation_only" = NO open applications, by invitation only
 
-4. LOCATION: City, State from contact/footer/about
+3. INVITATION-ONLY CHECK:
+   - Look for: "by invitation only", "does not accept unsolicited proposals", "invitation-based", "rarely accepts unsolicited"
+   - If found, set deadlineType to "invitation_only" and note this prominently in eligibility and deadlineNotes
 
-5. ELIGIBILITY: 501(c)(3), geographic limits, budget requirements
+4. ELIGIBILITY REQUIREMENTS - Note EVERYTHING:
+   - Look for: eligibility quizzes, pre-application requirements, geographic restrictions
+   - If they have an "eligibility quiz" or "determine your eligibility" - MENTION THIS
+   - Note: 501(c)(3) requirements, geographic focus, budget size limits, years of operation
 
-6. OVERVIEW: 2-3 sentences on what they fund
+5. LOCATION - Organization headquarters:
+   - Look in: footer, contact page, about page, address
+   - Format as "City, State" (e.g., "Seattle, WA")
 
-Return ONLY valid JSON:
+6. ORGANIZATION NAME - Official name with proper capitalization
+
+7. OVERVIEW - Include:
+   - What they fund (arts disciplines, project types)
+   - Any special focus areas
+   - Approximate % of funding for arts if mentioned
+
+Return ONLY this JSON (no other text):
 {
-  "organizationName": "Proper Name",
+  "organizationName": "string",
   "budgetMin": number,
   "budgetMax": number,
-  "deadline": "YYYY-MM-DD or empty",
+  "deadline": "YYYY-MM-DD or empty string",
   "deadlineType": "fixed" | "rolling" | "invitation_only",
-  "rollingDates": "ACTUAL dates from THIS site like 'Feb 1, May 1, Aug 1, Nov 1' OR just 'Quarterly'/'Rolling' if no dates",
-  "deadlineNotes": "Any additional deadline details, LOI requirements, etc.",
-  "location": "City, State (from contact/footer/about page)",
+  "rollingDates": "ACTUAL dates like 'Feb 1, May 1, Aug 1, Nov 1' or 'Last Monday in March' - NOT just 'Quarterly'",
+  "deadlineNotes": "Include specific cycle info, eligibility quiz requirements, invitation-only status",
+  "location": "City, State",
   "artsDiscipline": "Classical Music" | "General Arts" | "Performing Arts" | "Music Education" | "Humanities",
   "fundingType": "General Operating" | "Project-Based" | "Capital" | "Fellowship" | "Commissioning",
   "funderType": "Government" | "Private Foundation" | "Corporate" | "Community Foundation" | "Service Organization",
-  "eligibility": "requirements",
-  "overview": "2-3 sentence summary"
+  "eligibility": "Include any eligibility quiz requirements, geographic restrictions, invitation-only status",
+  "overview": "string"
 }
 
 URL: ${actualUrlUsed}
 
-CONTENT:
-${pageContent.slice(0, 20000)}`
+WEBSITE CONTENT (search ALL of this carefully):
+${pageContent.slice(0, 22000)}`
         }],
       }),
     });
@@ -300,14 +320,73 @@ ${pageContent.slice(0, 20000)}`
       });
     }
 
-    // Fix backwards budgets
+    // Fix and normalize budgets
     let budgetMin = grantData.budgetMin || 0;
     let budgetMax = grantData.budgetMax || 0;
+
+    // Fix backwards budgets
     if (budgetMin > budgetMax && budgetMax > 0) {
       [budgetMin, budgetMax] = [budgetMax, budgetMin];
     }
+
+    // If only one value, estimate the other
     if (budgetMin > 0 && budgetMax === 0) {
-      budgetMax = budgetMin;
+      budgetMax = budgetMin * 2;
+    }
+    if (budgetMax > 0 && budgetMin === 0) {
+      budgetMin = Math.round(budgetMax * 0.1);
+    }
+
+    // If still 0/0, estimate based on funder type
+    if (budgetMin === 0 && budgetMax === 0) {
+      const funderType = grantData.funderType || 'Private Foundation';
+      if (funderType === 'Government') {
+        budgetMin = 10000;
+        budgetMax = 100000;
+      } else if (funderType === 'Corporate') {
+        budgetMin = 5000;
+        budgetMax = 50000;
+      } else if (funderType === 'Community Foundation') {
+        budgetMin = 2500;
+        budgetMax = 25000;
+      } else {
+        // Private Foundation default
+        budgetMin = 5000;
+        budgetMax = 50000;
+      }
+    }
+
+    // Cap unreasonable values
+    if (budgetMax > 10000000) {
+      budgetMax = 500000;
+    }
+    if (budgetMin > 1000000) {
+      budgetMin = 10000;
+    }
+
+    // Fix old dates - update any date before current year to current/next year
+    let deadline = grantData.deadline || '';
+    if (deadline) {
+      const deadlineDate = new Date(deadline);
+      const currentYear = new Date().getFullYear();
+      if (deadlineDate.getFullYear() < currentYear) {
+        // Update to current year, or next year if that date has passed
+        const updatedDate = new Date(deadlineDate);
+        updatedDate.setFullYear(currentYear);
+        if (updatedDate < new Date()) {
+          updatedDate.setFullYear(currentYear + 1);
+        }
+        deadline = updatedDate.toISOString().split('T')[0];
+      }
+    }
+
+    // Clean up location - remove "See Website" type values
+    let location = grantData.location || '';
+    if (location.toLowerCase().includes('see website') ||
+        location.toLowerCase().includes('not found') ||
+        location.toLowerCase().includes('unknown') ||
+        location.length < 3) {
+      location = '';
     }
 
     const grant: Grant = {
@@ -316,11 +395,11 @@ ${pageContent.slice(0, 20000)}`
       website: actualUrlUsed,
       budgetMin,
       budgetMax,
-      deadline: grantData.deadline || '',
+      deadline,
       deadlineType: grantData.deadlineType,
       rollingDates: grantData.rollingDates || '',
       deadlineNotes: grantData.deadlineNotes || '',
-      location: grantData.location || '',
+      location,
       artsDiscipline: grantData.artsDiscipline || 'General Arts',
       fundingType: grantData.fundingType || 'Project-Based',
       funderType: grantData.funderType || 'Private Foundation',
