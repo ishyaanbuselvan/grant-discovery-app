@@ -128,40 +128,65 @@ export async function POST(request: NextRequest) {
       if (response.ok) {
         const html = await response.text();
         const rootDomain = getRootDomain(normalizedUrl);
-        pageContent = `=== ${normalizedUrl} ===\n${extractText(html).slice(0, 8000)}\n\n`;
+        pageContent = `=== ${normalizedUrl} ===\n${extractText(html).slice(0, 12000)}\n\n`;
 
-        // Extract and fetch additional pages - be aggressive
+        // Extract ALL internal links from the page - follow the actual navigation
         const linkRegex = /href=["']([^"']+)["']/gi;
-        const links: string[] = [];
+        const allLinks: string[] = [];
         let match;
         while ((match = linkRegex.exec(html)) !== null) {
           const href = match[1];
           if (href.startsWith('/') && !href.startsWith('//')) {
-            links.push(rootDomain + href);
+            allLinks.push(rootDomain + href);
           } else if (href.startsWith(rootDomain)) {
-            links.push(href);
+            allLinks.push(href);
           }
         }
 
-        // Keywords that indicate grant information
-        const grantKeywords = ['grant', 'fund', 'apply', 'deadline', 'eligib', 'guideline', 'program', 'award', 'nonprofit', 'application', 'criteria', 'requirement', 'submit', 'proposal', 'letter-of-inquiry', 'loi', 'rfa', 'rfp'];
+        // Dedupe and clean links
+        const uniqueLinks = [...new Set(allLinks)]
+          .filter(link => {
+            // Skip anchors, images, documents
+            const lower = link.toLowerCase();
+            return !lower.includes('#') &&
+                   !lower.endsWith('.pdf') &&
+                   !lower.endsWith('.jpg') &&
+                   !lower.endsWith('.png') &&
+                   !lower.endsWith('.gif') &&
+                   !lower.includes('/cdn-cgi/') &&
+                   !lower.includes('/wp-content/') &&
+                   !lower.includes('/assets/');
+          });
 
-        // Also try common paths that might not be linked
+        // Priority 1: Links with grant/funding keywords (most likely to have grant info)
+        const grantKeywords = ['grant', 'fund', 'apply', 'deadline', 'eligib', 'guideline', 'program', 'award', 'nonprofit', 'application', 'criteria', 'requirement', 'submit', 'proposal', 'loi', 'rfp', 'amount', 'budget', 'support', 'give', 'donate', 'community'];
+        const grantLinks = uniqueLinks.filter(link =>
+          grantKeywords.some(kw => link.toLowerCase().includes(kw))
+        );
+
+        // Priority 2: Main navigation links (short paths - these are the "buttons" user clicks)
+        const navLinks = uniqueLinks.filter(link => {
+          try {
+            const path = new URL(link).pathname;
+            // Short paths are likely main nav (e.g., /nonprofits, /giving, /about)
+            const segments = path.split('/').filter(s => s.length > 0);
+            return segments.length <= 2 && path !== '/';
+          } catch { return false; }
+        });
+
+        // Priority 3: Fallback common paths
         const commonPaths = [
-          '/grants', '/grants/', '/grantmaking', '/funding', '/apply',
-          '/grants/guidelines', '/grants/apply', '/grants/eligibility',
+          '/grants', '/grantmaking', '/funding', '/apply',
           '/for-grantseekers', '/for-nonprofits', '/programs',
-          '/what-we-fund', '/how-to-apply', '/application-process',
-          '/about', '/about-us', '/contact', '/contact-us'
+          '/nonprofits', '/community', '/giving'
         ];
 
-        const foundLinks = [...new Set(links)]
-          .filter(link => grantKeywords.some(kw => link.toLowerCase().includes(kw)));
-
+        // Combine with priority order: grant links first, then nav links, then common paths
         const allLinksToTry = [...new Set([
-          ...foundLinks,
+          ...grantLinks,
+          ...navLinks,
           ...commonPaths.map(p => rootDomain + p)
-        ])].slice(0, 10);
+        ])].slice(0, 12);
 
         // Fetch additional pages in parallel for speed
         const fetchPromises = allLinksToTry.map(async (link) => {
