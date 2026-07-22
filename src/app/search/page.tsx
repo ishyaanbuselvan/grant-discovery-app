@@ -22,6 +22,7 @@ type SortOption = 'deadline' | 'amount-high' | 'amount-low' | 'name';
 export default function SearchPage() {
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [sortBy, setSortBy] = useState<SortOption>('deadline');
+  const [hidePastDeadlines, setHidePastDeadlines] = useState(false);
   const { discoveredGrants } = useDiscoveredGrants();
 
   // Combine mockGrants with discovered grants (user-analyzed)
@@ -46,8 +47,17 @@ export default function SearchPage() {
   }, [discoveredGrants]);
 
   const filteredAndSortedGrants = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset to start of day for accurate comparison
+
     // First filter
     const filtered = allGrants.filter((grant) => {
+      // Hide past deadlines filter
+      if (hidePastDeadlines && grant.deadline) {
+        const deadlineDate = new Date(grant.deadline);
+        if (deadlineDate < today) return false;
+      }
+
       // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
@@ -115,7 +125,7 @@ export default function SearchPage() {
     });
 
     return sorted;
-  }, [filters, sortBy, allGrants]);
+  }, [filters, sortBy, allGrants, hidePastDeadlines]);
 
   const resetFilters = () => setFilters(initialFilters);
 
@@ -138,6 +148,20 @@ export default function SearchPage() {
         <p className="text-[var(--slate)]">
           Explore funding opportunities for classical music and performing arts organizations
         </p>
+      </div>
+
+      {/* Hide Past Deadlines Toggle */}
+      <div className="mb-6">
+        <button
+          onClick={() => setHidePastDeadlines(!hidePastDeadlines)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            hidePastDeadlines
+              ? 'bg-[var(--gold)] text-white hover:bg-[var(--gold-dark)]'
+              : 'bg-white border border-[var(--card-border)] text-[var(--midnight)] hover:border-[var(--gold)]'
+          }`}
+        >
+          {hidePastDeadlines ? '✓ Hiding Past Deadlines' : 'Hide Past Deadlines'}
+        </button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
