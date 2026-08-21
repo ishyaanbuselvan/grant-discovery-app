@@ -5,6 +5,7 @@ import { FilterState, Grant } from '@/lib/types';
 import Filters from '@/components/Filters';
 import GrantCard from '@/components/GrantCard';
 import { useDiscoveredGrants } from '@/context/DiscoveredGrantsContext';
+import { useReceivedGrants } from '@/context/ReceivedGrantsContext';
 
 const initialFilters: FilterState = {
   search: '',
@@ -23,7 +24,9 @@ export default function SearchPage() {
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [sortBy, setSortBy] = useState<SortOption>('deadline');
   const [hidePastDeadlines, setHidePastDeadlines] = useState(false);
+  const [hideReceivedGrants, setHideReceivedGrants] = useState(false);
   const { discoveredGrants } = useDiscoveredGrants();
+  const { isGrantReceived } = useReceivedGrants();
 
   // Combine mockGrants with discovered grants (user-analyzed)
   const allGrants = useMemo(() => {
@@ -52,6 +55,11 @@ export default function SearchPage() {
 
     // First filter
     const filtered = allGrants.filter((grant) => {
+      // Hide received grants filter
+      if (hideReceivedGrants && isGrantReceived(grant.id)) {
+        return false;
+      }
+
       // Hide past deadlines filter
       if (hidePastDeadlines && grant.deadline) {
         const deadlineDate = new Date(grant.deadline);
@@ -125,7 +133,7 @@ export default function SearchPage() {
     });
 
     return sorted;
-  }, [filters, sortBy, allGrants, hidePastDeadlines]);
+  }, [filters, sortBy, allGrants, hidePastDeadlines, hideReceivedGrants, isGrantReceived]);
 
   const resetFilters = () => setFilters(initialFilters);
 
@@ -150,8 +158,8 @@ export default function SearchPage() {
         </p>
       </div>
 
-      {/* Hide Past Deadlines Toggle */}
-      <div className="mb-6">
+      {/* Quick Filter Toggles */}
+      <div className="mb-6 flex flex-wrap gap-3">
         <button
           onClick={() => setHidePastDeadlines(!hidePastDeadlines)}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -161,6 +169,16 @@ export default function SearchPage() {
           }`}
         >
           {hidePastDeadlines ? '✓ Hiding Past Deadlines' : 'Hide Past Deadlines'}
+        </button>
+        <button
+          onClick={() => setHideReceivedGrants(!hideReceivedGrants)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            hideReceivedGrants
+              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+              : 'bg-white border border-[var(--card-border)] text-[var(--midnight)] hover:border-emerald-500'
+          }`}
+        >
+          {hideReceivedGrants ? '✓ Hiding Already Received' : 'Hide Already Received'}
         </button>
       </div>
 

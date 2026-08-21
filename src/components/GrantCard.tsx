@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Grant } from '@/lib/types';
 import { useSavedGrants } from '@/context/SavedGrantsContext';
+import { useReceivedGrants } from '@/context/ReceivedGrantsContext';
 
 interface GrantCardProps {
   grant: Grant;
@@ -11,7 +12,9 @@ interface GrantCardProps {
 export default function GrantCard({ grant, showSaveButton = true }: GrantCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { addGrant, removeGrant, isGrantSaved } = useSavedGrants();
+  const { markAsReceived, unmarkAsReceived, isGrantReceived } = useReceivedGrants();
   const isSaved = isGrantSaved(grant.id);
+  const isReceived = isGrantReceived(grant.id);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
@@ -49,6 +52,11 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
               {grant.isInvitationOnly && (
                 <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700">
                   Invitation Only
+                </span>
+              )}
+              {isReceived && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-700 font-medium">
+                  ✓ Already Received
                 </span>
               )}
             </div>
@@ -96,6 +104,20 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
           </div>
 
           <div className="flex items-center space-x-2 ml-4">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                isReceived ? unmarkAsReceived(grant.id) : markAsReceived(grant.id);
+              }}
+              className={`p-2 rounded-lg transition-all ${
+                isReceived
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-[var(--background-alt)] text-[var(--slate)] hover:bg-emerald-100 hover:text-emerald-600'
+              }`}
+              title={isReceived ? 'Unmark as received' : 'Mark as already received'}
+            >
+              {isReceived ? '✓' : '◯'}
+            </button>
             {showSaveButton && (
               <button
                 onClick={(e) => {

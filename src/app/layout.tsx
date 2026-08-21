@@ -3,6 +3,7 @@ import { Geist, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { SavedGrantsProvider } from "@/context/SavedGrantsContext";
 import { DiscoveredGrantsProvider } from "@/context/DiscoveredGrantsContext";
+import { ReceivedGrantsProvider } from "@/context/ReceivedGrantsContext";
 import Navigation from "@/components/Navigation";
 
 const geistSans = Geist({
@@ -52,10 +53,12 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${cormorant.variable} antialiased bg-[var(--background)]`}>
         <SavedGrantsProvider>
           <DiscoveredGrantsProvider>
-            <Navigation />
-            <main className="min-h-[calc(100vh-64px)]">
-              {children}
-            </main>
+            <ReceivedGrantsProvider>
+              <Navigation />
+              <main className="min-h-[calc(100vh-64px)]">
+                {children}
+              </main>
+            </ReceivedGrantsProvider>
           </DiscoveredGrantsProvider>
         </SavedGrantsProvider>
       </body>

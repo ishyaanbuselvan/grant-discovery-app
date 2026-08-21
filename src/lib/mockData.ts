@@ -2946,6 +2946,25 @@ export const mockGrants: Grant[] = [
     overview: 'Creative Capital Award provides unrestricted project grants up to $50,000 to individual artists. Supports creation of new work in all artistic disciplines. Includes advisory services and professional development support.',
     applicationUrl: 'https://creative-capital.org/creative-capital-award/',
     isActive: true
+  },
+  {
+    id: '165',
+    organizationName: 'Meyer and Deanne Sharlin Foundation',
+    website: 'https://www.guidestar.org/profile/92-3830845',
+    budgetMin: 1000,
+    budgetMax: 1310000,
+    deadline: '',
+    deadlineType: 'invitation_only',
+    deadlineNotes: 'BY INVITATION ONLY. Does not accept unsolicited proposals. Relationship-based grantmaking approach. Contact foundation directly to explore potential partnerships.',
+    location: 'Washington, DC',
+    artsDiscipline: 'General Arts',
+    fundingType: 'General Operating',
+    funderType: 'Private Foundation',
+    eligibility: 'BY INVITATION ONLY. Primarily funds organizations in DC, New York, and Maryland. Focus areas include Education, Human Services, and Philanthropy. Median first-year grant approximately $25,000.',
+    overview: 'Private foundation based in Bethesda, MD. In 2024, awarded $13 million across 81 grantees. Typical awards range $1,000-$1,310,000 with median grants around $25,000. Does not accept unsolicited proposals - funding is relationship-based.',
+    contactEmail: '',
+    isInvitationOnly: true,
+    isActive: true
   }
 ];
 
