@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { mockGrants } from '@/lib/mockData';
 import { FilterState, Grant } from '@/lib/types';
 import Filters from '@/components/Filters';
@@ -25,8 +25,26 @@ export default function SearchPage() {
   const [sortBy, setSortBy] = useState<SortOption>('deadline');
   const [hidePastDeadlines, setHidePastDeadlines] = useState(false);
   const [hideReceivedGrants, setHideReceivedGrants] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const { discoveredGrants } = useDiscoveredGrants();
   const { isGrantReceived } = useReceivedGrants();
+
+  // Load filter preferences from localStorage on mount
+  useEffect(() => {
+    const savedHidePast = localStorage.getItem('luminarts-hide-past-deadlines');
+    const savedHideReceived = localStorage.getItem('luminarts-hide-received');
+    if (savedHidePast !== null) setHidePastDeadlines(savedHidePast === 'true');
+    if (savedHideReceived !== null) setHideReceivedGrants(savedHideReceived === 'true');
+    setIsLoaded(true);
+  }, []);
+
+  // Save filter preferences to localStorage when they change
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('luminarts-hide-past-deadlines', String(hidePastDeadlines));
+      localStorage.setItem('luminarts-hide-received', String(hideReceivedGrants));
+    }
+  }, [hidePastDeadlines, hideReceivedGrants, isLoaded]);
 
   // Combine mockGrants with discovered grants (user-analyzed)
   const allGrants = useMemo(() => {
