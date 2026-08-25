@@ -13,7 +13,9 @@ const RECEIVED_GRANTS_KEY = 'luminarts-received-grants';
 export async function GET() {
   try {
     const receivedGrants = await redis.smembers(RECEIVED_GRANTS_KEY);
-    return NextResponse.json({ receivedGrants: receivedGrants || [] });
+    // Ensure all IDs are strings for consistent comparison
+    const stringIds = (receivedGrants || []).map(id => String(id));
+    return NextResponse.json({ receivedGrants: stringIds });
   } catch (error) {
     console.error('Error fetching received grants:', error);
     return NextResponse.json({ receivedGrants: [] });
@@ -27,9 +29,11 @@ export async function POST(request: NextRequest) {
     if (!grantId) {
       return NextResponse.json({ error: 'grantId required' }, { status: 400 });
     }
-    await redis.sadd(RECEIVED_GRANTS_KEY, grantId);
+    // Store as string
+    await redis.sadd(RECEIVED_GRANTS_KEY, String(grantId));
     const receivedGrants = await redis.smembers(RECEIVED_GRANTS_KEY);
-    return NextResponse.json({ success: true, receivedGrants });
+    const stringIds = (receivedGrants || []).map(id => String(id));
+    return NextResponse.json({ success: true, receivedGrants: stringIds });
   } catch (error) {
     console.error('Error adding received grant:', error);
     return NextResponse.json({ error: 'Failed to add grant' }, { status: 500 });
@@ -43,9 +47,11 @@ export async function DELETE(request: NextRequest) {
     if (!grantId) {
       return NextResponse.json({ error: 'grantId required' }, { status: 400 });
     }
-    await redis.srem(RECEIVED_GRANTS_KEY, grantId);
+    // Remove as string
+    await redis.srem(RECEIVED_GRANTS_KEY, String(grantId));
     const receivedGrants = await redis.smembers(RECEIVED_GRANTS_KEY);
-    return NextResponse.json({ success: true, receivedGrants });
+    const stringIds = (receivedGrants || []).map(id => String(id));
+    return NextResponse.json({ success: true, receivedGrants: stringIds });
   } catch (error) {
     console.error('Error removing received grant:', error);
     return NextResponse.json({ error: 'Failed to remove grant' }, { status: 500 });
