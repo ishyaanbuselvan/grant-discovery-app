@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
-        'anthropic-version': '2023-10-01',
+        'anthropic-version': '2024-01-01',
       },
       body: JSON.stringify({
         model: 'claude-3-5-haiku-20241022',
