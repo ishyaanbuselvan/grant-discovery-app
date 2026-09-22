@@ -226,11 +226,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Check API key
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    let apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return NextResponse.json({
-        grant: generateBasicGrant(url, 'No API key'),
+        grant: generateBasicGrant(url, 'No API key configured'),
         debug: 'no_api_key'
+      });
+    }
+
+    // Clean API key (remove quotes if accidentally included)
+    apiKey = apiKey.trim().replace(/^["']|["']$/g, '');
+
+    if (!apiKey.startsWith('sk-ant-')) {
+      return NextResponse.json({
+        grant: generateBasicGrant(url, `Invalid API key format (starts with: ${apiKey.slice(0, 10)}...)`),
+        debug: 'invalid_api_key'
       });
     }
 
@@ -326,18 +336,26 @@ ${pageContent.slice(0, 22000)}`
 
     if (!claudeResponse.ok) {
       const errText = await claudeResponse.text();
-      console.error('Claude error:', errText);
+      const status = claudeResponse.status;
+      console.error('Claude error:', status, errText);
       // Parse error for user-friendly message
-      let errorMsg = 'AI error';
+      let errorMsg = `API error (${status})`;
       try {
         const errJson = JSON.parse(errText);
-        errorMsg = errJson.error?.message || errJson.message || errText.slice(0, 200);
+        if (errJson.error?.message) {
+          errorMsg = errJson.error.message;
+        } else if (errJson.error?.type) {
+          errorMsg = `${errJson.error.type}: ${JSON.stringify(errJson.error)}`;
+        } else {
+          errorMsg = `Status ${status}: ${errText.slice(0, 300)}`;
+        }
       } catch {
-        errorMsg = errText.slice(0, 200);
+        errorMsg = `Status ${status}: ${errText.slice(0, 300)}`;
       }
       return NextResponse.json({
         grant: generateBasicGrant(url, errorMsg),
         debug: 'claude_failed',
+        status,
         error: errText
       });
     }
