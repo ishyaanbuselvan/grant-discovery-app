@@ -1,6 +1,9 @@
 'use client';
 import Link from 'next/link';
 import Script from 'next/script';
+import { useMemo } from 'react';
+import { mockGrants } from '@/lib/mockData';
+import { Grant } from '@/lib/types';
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -34,6 +37,50 @@ const jsonLd = {
 };
 
 export default function Home() {
+  // Get FMMC-eligible grants due in the next 60 days
+  const upcomingGrants = useMemo(() => {
+    const today = new Date();
+    const sixtyDaysFromNow = new Date();
+    sixtyDaysFromNow.setDate(sixtyDaysFromNow.getDate() + 60);
+
+    return mockGrants
+      .filter((grant: Grant) => {
+        // Must have a deadline
+        if (!grant.deadline) return false;
+
+        // Check if within 60 days
+        const deadlineDate = new Date(grant.deadline);
+        if (deadlineDate < today || deadlineDate > sixtyDaysFromNow) return false;
+
+        // Check if FMMC-eligible (organization-eligible, DC/MD/VA or National)
+        const applicantOk = !grant.applicantType || grant.applicantType === 'Organization' || grant.applicantType === 'Both';
+        const geo = grant.eligibleGeography?.toLowerCase() || '';
+        const loc = grant.location?.toLowerCase() || '';
+        const geoOk =
+          !grant.eligibleGeography ||
+          geo.includes('national') ||
+          geo.includes('dc') ||
+          geo.includes('maryland') ||
+          geo.includes('virginia') ||
+          geo.includes('mid-atlantic') ||
+          (loc.includes('washington') || loc.includes('dc') || loc.includes('maryland') || loc.includes('virginia') || loc.includes('baltimore'));
+
+        return applicantOk && geoOk;
+      })
+      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+      .slice(0, 5);
+  }, []);
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getDaysUntil = (dateStr: string) => {
+    const deadline = new Date(dateStr);
+    const today = new Date();
+    return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
   return (
     <div className="min-h-screen">
       <Script
@@ -72,6 +119,55 @@ export default function Home() {
           <p className="text-sm mb-2">Discover more</p><span className="text-2xl">&#8595;</span>
         </div>
       </section>
+
+      {/* Due in 60 Days Section */}
+      {upcomingGrants.length > 0 && (
+        <section className="py-12 px-4 bg-red-50 border-y border-red-100">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">&#128197;</span>
+                <h2 className="text-2xl font-bold text-[var(--midnight)]" style={{ fontFamily: 'var(--font-cormorant), Georgia, serif' }}>
+                  Due in the Next 60 Days
+                </h2>
+                <span className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full font-medium">
+                  Action Required
+                </span>
+              </div>
+              <Link href="/search" className="text-sm text-[var(--gold)] hover:underline">
+                View all grants →
+              </Link>
+            </div>
+            <div className="grid gap-3">
+              {upcomingGrants.map((grant) => {
+                const days = getDaysUntil(grant.deadline);
+                return (
+                  <Link
+                    key={grant.id}
+                    href="/search"
+                    className="bg-white rounded-lg p-4 border border-red-100 hover:border-[var(--gold)] transition-colors flex items-center justify-between"
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium text-[var(--midnight)]">{grant.organizationName}</div>
+                      <div className="text-sm text-[var(--slate)]">
+                        ${grant.budgetMin.toLocaleString()} - ${grant.budgetMax.toLocaleString()} | {grant.funderType}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`font-bold ${days <= 14 ? 'text-red-600' : days <= 30 ? 'text-orange-600' : 'text-[var(--gold)]'}`}>
+                        {formatDate(grant.deadline)}
+                      </div>
+                      <div className={`text-xs ${days <= 14 ? 'text-red-500' : days <= 30 ? 'text-orange-500' : 'text-[var(--slate)]'}`}>
+                        {days} days left
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="py-24 px-4 bg-white">
         <div className="max-w-6xl mx-auto">

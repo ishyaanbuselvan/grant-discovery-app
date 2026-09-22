@@ -34,6 +34,15 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
 
   const daysLeft = grant.deadline ? getDaysUntilDeadline(grant.deadline) : null;
 
+  // Check if last verified date is older than 6 months
+  const isVerificationStale = () => {
+    if (!grant.lastVerified) return true; // No verification = stale
+    const verifiedDate = new Date(grant.lastVerified);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return verifiedDate < sixMonthsAgo;
+  };
+
   return (
     <div className="grant-card overflow-hidden">
       <div
@@ -49,9 +58,28 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
               <span className="px-2 py-0.5 text-xs rounded-full bg-[var(--background-alt)] text-[var(--slate-dark)]">
                 {grant.artsDiscipline}
               </span>
+              {grant.applicantType && (
+                <span className={`px-2 py-0.5 text-xs rounded-full ${
+                  grant.applicantType === 'Individual' ? 'bg-purple-100 text-purple-700' :
+                  grant.applicantType === 'Organization' ? 'bg-blue-100 text-blue-700' :
+                  'bg-teal-100 text-teal-700'
+                }`}>
+                  {grant.applicantType === 'Both' ? 'Orgs & Individuals' : grant.applicantType}
+                </span>
+              )}
               {grant.isInvitationOnly && (
                 <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700">
                   Invitation Only
+                </span>
+              )}
+              {grant.isAIGenerated && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600" title="AI-analyzed - verify before applying">
+                  AI Analyzed
+                </span>
+              )}
+              {isVerificationStale() && !grant.isAIGenerated && (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700" title="Information may be outdated">
+                  Needs Verification
                 </span>
               )}
               {isReceived && (
@@ -161,25 +189,45 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
               </div>
             )}
 
+            {grant.eligibleGeography && (
+              <div>
+                <h4 className="text-sm font-semibold text-[var(--midnight)] mb-1">Geographic Eligibility</h4>
+                <p className="text-sm text-[var(--slate-dark)]">{grant.eligibleGeography}</p>
+              </div>
+            )}
+
+            {/* Primary Action: Apply Now */}
             <div className="flex flex-wrap gap-3 pt-2">
-              <a
-                href={grant.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-primary text-sm inline-flex items-center"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Visit Website →
-              </a>
-              {grant.applicationUrl && (
+              {grant.applicationUrl ? (
                 <a
                   href={grant.applicationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary text-sm inline-flex items-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Apply Now →
+                </a>
+              ) : (
+                <a
+                  href={grant.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary text-sm inline-flex items-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Visit Website →
+                </a>
+              )}
+              {grant.applicationUrl && (
+                <a
+                  href={grant.website}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-secondary text-sm inline-flex items-center"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Apply Now
+                  Website
                 </a>
               )}
               {grant.contactEmail && (
@@ -190,6 +238,30 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
                 >
                   Contact: {grant.contactEmail}
                 </a>
+              )}
+            </div>
+
+            {/* Metadata: Last Verified, Source */}
+            <div className="flex flex-wrap gap-4 pt-2 text-xs text-[var(--slate)]">
+              {grant.lastVerified && (
+                <span className={isVerificationStale() ? 'text-orange-600' : ''}>
+                  Last verified: {new Date(grant.lastVerified).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {isVerificationStale() && ' (may be outdated)'}
+                </span>
+              )}
+              {grant.sourceUrl && (
+                <a
+                  href={grant.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-[var(--gold)] underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Source
+                </a>
+              )}
+              {grant.isAIGenerated && (
+                <span className="text-gray-500">AI-analyzed from website - verify details before applying</span>
               )}
             </div>
           </div>

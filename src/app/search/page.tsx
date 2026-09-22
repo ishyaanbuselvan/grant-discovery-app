@@ -25,16 +25,50 @@ export default function SearchPage() {
   const [sortBy, setSortBy] = useState<SortOption>('deadline');
   const [hidePastDeadlines, setHidePastDeadlines] = useState(false);
   const [hideReceivedGrants, setHideReceivedGrants] = useState(false);
+  const [showFMMCEligibleOnly, setShowFMMCEligibleOnly] = useState(true); // Default ON per requirements
+  const [hideIndividualGrants, setHideIndividualGrants] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const { discoveredGrants } = useDiscoveredGrants();
   const { isGrantReceived } = useReceivedGrants();
+
+  // Check if a grant is FMMC-eligible (Organization, DC/MD/VA or National)
+  const isFMMCEligible = (grant: Grant): boolean => {
+    // Check applicant type - must accept organizations
+    const applicantOk = !grant.applicantType || grant.applicantType === 'Organization' || grant.applicantType === 'Both';
+
+    // Check geography - must be National or include DC/MD/VA area
+    const geo = grant.eligibleGeography?.toLowerCase() || '';
+    const loc = grant.location?.toLowerCase() || '';
+    const eligibilityText = grant.eligibility?.toLowerCase() || '';
+
+    // Consider it FMMC-eligible if:
+    // - eligibleGeography is National, DC, Maryland, Virginia, or DC-MD-VA
+    // - OR location includes DC, MD, VA (and no restrictive geography set)
+    // - OR no geography restrictions set (assume national)
+    const geoOk =
+      !grant.eligibleGeography || // No geography restriction = assume national
+      geo.includes('national') ||
+      geo.includes('dc') ||
+      geo.includes('maryland') ||
+      geo.includes('virginia') ||
+      geo.includes('mid-atlantic') ||
+      geo.includes('mid atlantic') ||
+      // Check if location-based funder in DC area (might fund locally)
+      (loc.includes('washington') || loc.includes('dc') || loc.includes('maryland') || loc.includes('virginia') || loc.includes('baltimore'));
+
+    return applicantOk && geoOk;
+  };
 
   // Load filter preferences from localStorage on mount
   useEffect(() => {
     const savedHidePast = localStorage.getItem('luminarts-hide-past-deadlines');
     const savedHideReceived = localStorage.getItem('luminarts-hide-received');
+    const savedFMMCOnly = localStorage.getItem('luminarts-fmmc-eligible-only');
+    const savedHideIndividual = localStorage.getItem('luminarts-hide-individual');
     if (savedHidePast !== null) setHidePastDeadlines(savedHidePast === 'true');
     if (savedHideReceived !== null) setHideReceivedGrants(savedHideReceived === 'true');
+    if (savedFMMCOnly !== null) setShowFMMCEligibleOnly(savedFMMCOnly === 'true');
+    if (savedHideIndividual !== null) setHideIndividualGrants(savedHideIndividual === 'true');
     setIsLoaded(true);
   }, []);
 
@@ -43,8 +77,10 @@ export default function SearchPage() {
     if (isLoaded) {
       localStorage.setItem('luminarts-hide-past-deadlines', String(hidePastDeadlines));
       localStorage.setItem('luminarts-hide-received', String(hideReceivedGrants));
+      localStorage.setItem('luminarts-fmmc-eligible-only', String(showFMMCEligibleOnly));
+      localStorage.setItem('luminarts-hide-individual', String(hideIndividualGrants));
     }
-  }, [hidePastDeadlines, hideReceivedGrants, isLoaded]);
+  }, [hidePastDeadlines, hideReceivedGrants, showFMMCEligibleOnly, hideIndividualGrants, isLoaded]);
 
   // Combine mockGrants with discovered grants (user-analyzed)
   const allGrants = useMemo(() => {
@@ -82,6 +118,16 @@ export default function SearchPage() {
       if (hidePastDeadlines && grant.deadline) {
         const deadlineDate = new Date(grant.deadline);
         if (deadlineDate < today) return false;
+      }
+
+      // FMMC-eligible only filter
+      if (showFMMCEligibleOnly && !isFMMCEligible(grant)) {
+        return false;
+      }
+
+      // Hide individual artist grants (show only org-eligible)
+      if (hideIndividualGrants && grant.applicantType === 'Individual') {
+        return false;
       }
 
       // Search filter
@@ -151,7 +197,7 @@ export default function SearchPage() {
     });
 
     return sorted;
-  }, [filters, sortBy, allGrants, hidePastDeadlines, hideReceivedGrants, isGrantReceived]);
+  }, [filters, sortBy, allGrants, hidePastDeadlines, hideReceivedGrants, showFMMCEligibleOnly, hideIndividualGrants, isGrantReceived, isFMMCEligible]);
 
   const resetFilters = () => setFilters(initialFilters);
 
@@ -179,6 +225,17 @@ export default function SearchPage() {
       {/* Quick Filter Toggles */}
       <div className="mb-6 flex flex-wrap gap-3">
         <button
+          onClick={() => setShowFMMCEligibleOnly(!showFMMCEligibleOnly)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            showFMMCEligibleOnly
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-white border border-[var(--card-border)] text-[var(--midnight)] hover:border-blue-500'
+          }`}
+          title="Show only grants that FMMC can apply to (organizations, DC/MD/VA or National)"
+        >
+          {showFMMCEligibleOnly ? '✓ FMMC Eligible Only' : 'Show All Grants'}
+        </button>
+        <button
           onClick={() => setHidePastDeadlines(!hidePastDeadlines)}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             hidePastDeadlines
@@ -197,6 +254,17 @@ export default function SearchPage() {
           }`}
         >
           {hideReceivedGrants ? '✓ Hiding Already Received' : 'Hide Already Received'}
+        </button>
+        <button
+          onClick={() => setHideIndividualGrants(!hideIndividualGrants)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            hideIndividualGrants
+              ? 'bg-purple-600 text-white hover:bg-purple-700'
+              : 'bg-white border border-[var(--card-border)] text-[var(--midnight)] hover:border-purple-500'
+          }`}
+          title="Hide grants for individual artists only"
+        >
+          {hideIndividualGrants ? '✓ Organizations Only' : 'Include Individual Grants'}
         </button>
       </div>
 

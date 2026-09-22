@@ -11,6 +11,9 @@ export const mockGrants: Grant[] = [
     deadline: '2026-02-12',
     deadlineNotes: 'Two cycles per year: February 12, 2026 and July 9, 2026. Part 1 (Intent to Apply) due first, then Part 2 via Applicant Portal.',
     location: 'Washington, DC',
+    funderHq: 'Washington, DC',
+    eligibleGeography: 'National',
+    applicantType: 'Organization',
     artsDiscipline: 'General Arts',
     fundingType: 'Project-Based',
     funderType: 'Government',
@@ -18,6 +21,8 @@ export const mockGrants: Grant[] = [
     overview: 'NEA Grants for Arts Projects supports public engagement with, and access to, excellent art across the nation. Requires 1:1 cost share match. Supports disciplines including Music, Musical Theater, Opera, Presenting, Dance, Theater, and Visual Arts.',
     contactEmail: 'webmgr@arts.gov',
     applicationUrl: 'https://www.arts.gov/grants/grants-for-arts-projects',
+    sourceUrl: 'https://www.arts.gov/grants/grants-for-arts-projects',
+    lastVerified: '2026-09-22',
     isActive: true
   },
   {
@@ -29,6 +34,9 @@ export const mockGrants: Grant[] = [
     deadline: '2027-05-06',
     deadlineNotes: 'FY2028 GOS deadline estimated May 2027 (FY2027 was May 5, 2026). Awards between $12,500-$200,000 for fiscal year Oct 1-Sept 30. Four categories: Generalists, Service Organizations, Capacity Building, Multi-Year.',
     location: 'Washington, DC',
+    funderHq: 'Washington, DC',
+    eligibleGeography: 'DC',
+    applicantType: 'Organization',
     artsDiscipline: 'General Arts',
     fundingType: 'General Operating',
     funderType: 'Government',
@@ -36,6 +44,8 @@ export const mockGrants: Grant[] = [
     overview: 'CAH provides grants to arts organizations that contribute to the cultural vitality of Washington, DC. Programs include General Operating Support, Capital Projects, and various project grants. Multi-year funding available.',
     contactEmail: 'cah@dc.gov',
     applicationUrl: 'https://dcarts.dc.gov/service/cah-grants',
+    sourceUrl: 'https://dcarts.dc.gov/service/cah-grants',
+    lastVerified: '2026-09-22',
     isActive: true
   },
   {
@@ -47,6 +57,9 @@ export const mockGrants: Grant[] = [
     deadline: '2026-02-01',
     deadlineNotes: 'Multiple programs: General Operating Support (Short Form Feb 1, Long Form Mar 1). Community Impact Grants have separate deadline - check website. Small org fixed grants: $2,500.',
     location: 'Richmond, VA',
+    funderHq: 'Richmond, VA',
+    eligibleGeography: 'Virginia',
+    applicantType: 'Organization',
     artsDiscipline: 'General Arts',
     fundingType: 'General Operating',
     funderType: 'Government',
@@ -54,6 +67,8 @@ export const mockGrants: Grant[] = [
     overview: 'VCA offers multiple programs: General Operating Support (largest program), Community Impact Grants, and project grants. Check specific program pages for deadlines and requirements. Awards made annually.',
     contactEmail: 'arts@virginia.gov',
     applicationUrl: 'https://vca.virginia.gov/grants/',
+    sourceUrl: 'https://vca.virginia.gov/grants/',
+    lastVerified: '2026-09-22',
     isActive: true
   },
   {
@@ -65,6 +80,9 @@ export const mockGrants: Grant[] = [
     deadline: '2026-01-17',
     deadlineNotes: 'Multiple programs with different deadlines. Arts in Education: rolling July-January. Creativity Grants: rolling July-March.',
     location: 'Baltimore, MD',
+    funderHq: 'Baltimore, MD',
+    eligibleGeography: 'Maryland',
+    applicantType: 'Organization',
     artsDiscipline: 'General Arts',
     fundingType: 'General Operating',
     funderType: 'Government',
@@ -72,6 +90,8 @@ export const mockGrants: Grant[] = [
     overview: 'MSAC supports Maryland arts organizations through operating grants, project grants, and artist fellowships. Arts in Education grants up to $84,000 for Teaching Artist Organizations. FY2026 runs July 1, 2025 to June 30, 2026.',
     contactEmail: 'msac@maryland.gov',
     applicationUrl: 'https://msac.org/programs/grants-organizations',
+    sourceUrl: 'https://msac.org/programs/grants-organizations',
+    lastVerified: '2026-09-22',
     isActive: true
   },
   {
@@ -2105,40 +2125,8 @@ export const mockGrants: Grant[] = [
   },
 
   // ==================== ADDITIONAL COMMISSIONING ====================
-  {
-    id: '118',
-    organizationName: 'Meet The Composer / New Music USA',
-    website: 'https://newmusicusa.org',
-    budgetMin: 1000,
-    budgetMax: 15000,
-    deadline: '2026-03-15',
-    deadlineNotes: 'Project grants for presenting organizations.',
-    location: 'New York, NY',
-    artsDiscipline: 'Classical Music',
-    fundingType: 'Project-Based',
-    funderType: 'Service Organization',
-    eligibility: 'Organizations presenting work by living composers.',
-    overview: 'Support for organizations commissioning and performing new music by living composers.',
-    applicationUrl: 'https://newmusicusa.org/',
-    isActive: true
-  },
-  {
-    id: '119',
-    organizationName: 'American Music Center',
-    website: 'https://newmusicusa.org',
-    budgetMin: 2500,
-    budgetMax: 10000,
-    deadline: '2026-04-01',
-    deadlineNotes: 'Now part of New Music USA.',
-    location: 'New York, NY',
-    artsDiscipline: 'Classical Music',
-    fundingType: 'Project-Based',
-    funderType: 'Service Organization',
-    eligibility: 'Organizations and ensembles performing contemporary American music.',
-    overview: 'Support for performances of contemporary American music. Merged with Meet The Composer.',
-    applicationUrl: 'https://newmusicusa.org/',
-    isActive: true
-  },
+  // NOTE: American Music Center and Meet The Composer merged into New Music USA on November 8, 2011
+  // See entry id: '12' for New Music USA - Creator Fund
   {
     id: '120',
     organizationName: 'MAP Fund',
@@ -2177,7 +2165,7 @@ export const mockGrants: Grant[] = [
   },
   {
     id: '122',
-    organizationName: 'The MacDowell Colony',
+    organizationName: 'MacDowell',
     website: 'https://www.macdowell.org',
     budgetMin: 0,
     budgetMax: 10000,
@@ -2334,25 +2322,7 @@ export const mockGrants: Grant[] = [
   },
 
   // ==================== ADDITIONAL FOUNDATIONS ====================
-  {
-    id: '131',
-    organizationName: 'The Lila Wallace-Reader\'s Digest Fund',
-    website: 'https://wallacefoundation.org',
-    budgetMin: 50000,
-    budgetMax: 300000,
-    deadline: '',
-    deadlineType: 'rolling',
-    rollingDates: 'By invitation',
-    deadlineNotes: 'Now part of Wallace Foundation.',
-    location: 'New York, NY',
-    artsDiscipline: 'Performing Arts',
-    fundingType: 'General Operating',
-    funderType: 'Private Foundation',
-    eligibility: 'Major performing arts organizations.',
-    overview: 'Audience development and organizational capacity building.',
-    isInvitationOnly: true,
-    isActive: true
-  },
+  // NOTE: Wallace Foundation general entry removed - see id: '78' (Wallace Foundation - Arts Initiative)
   {
     id: '132',
     organizationName: 'The Pew Center for Arts & Heritage',
@@ -2810,24 +2780,7 @@ export const mockGrants: Grant[] = [
     applicationUrl: 'https://www.ctbfoundation.org/',
     isActive: true
   },
-  {
-    id: '157',
-    organizationName: 'Aaron Copland Fund for Music - General Support Program',
-    website: 'https://coplandfund.org',
-    budgetMin: 2000,
-    budgetMax: 20000,
-    deadline: '2027-04-30',
-    deadlineNotes: 'Preliminary Round deadline April 30, 2027 at 11:59pm ET. Account request deadline April 24, 2027. Support year Sept 1, 2027 - Aug 31, 2028. Larger grants may be awarded to organizations with extraordinary commitment to contemporary American concert music or jazz.',
-    location: 'New York, NY',
-    artsDiscipline: 'Classical Music',
-    fundingType: 'General Operating',
-    funderType: 'Private Foundation',
-    eligibility: 'Organizations with extraordinary commitment to contemporary American concert music, jazz, or both. New programs launched in 2026 replacing Performance, Recording, and Supplemental programs.',
-    overview: 'Aaron Copland Fund for Music launched new General Support and Project Support programs in 2026. Grants range $2,000-$20,000, with larger amounts possible for larger organizations. Support year runs Sept-August.',
-    contactEmail: 'onlinegrants@coplandfund.org',
-    applicationUrl: 'https://coplandfund.org/programs/general-support-program',
-    isActive: true
-  },
+  // NOTE: Aaron Copland Fund entry removed - duplicate of id: '14'
   {
     id: '158',
     organizationName: 'Andy Warhol Foundation - Project Grants for Small Organizations',
@@ -2930,23 +2883,7 @@ export const mockGrants: Grant[] = [
     applicationUrl: 'https://kresgeartsindetroit.org/apply/',
     isActive: true
   },
-  {
-    id: '164',
-    organizationName: 'Creative Capital',
-    website: 'https://creative-capital.org',
-    budgetMin: 10000,
-    budgetMax: 50000,
-    deadline: '2027-04-02',
-    deadlineNotes: '2028 Open Call estimated April 2, 2027 at 3pm ET (2027 was April 2, 2026). Unrestricted project grants for new artistic works. Winners also receive advisory services and professional development.',
-    location: 'New York, NY',
-    artsDiscipline: 'Performing Arts',
-    fundingType: 'Project-Based',
-    funderType: 'Private Foundation',
-    eligibility: 'Individual artists in all 50 states for new works in Visual Arts, Performing Arts, Film, and Literature. US-based artists only.',
-    overview: 'Creative Capital Award provides unrestricted project grants up to $50,000 to individual artists. Supports creation of new work in all artistic disciplines. Includes advisory services and professional development support.',
-    applicationUrl: 'https://creative-capital.org/creative-capital-award/',
-    isActive: true
-  },
+  // NOTE: Creative Capital entry removed - duplicate of id: '26' (Creative Capital Award)
   {
     id: '165',
     organizationName: 'Meyer and Deanne Sharlin Foundation',
