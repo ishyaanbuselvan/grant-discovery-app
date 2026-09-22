@@ -35,28 +35,82 @@ export default function SearchPage() {
   const isFMMCEligible = (grant: Grant): boolean => {
     // Check applicant type - must accept organizations
     const applicantOk = !grant.applicantType || grant.applicantType === 'Organization' || grant.applicantType === 'Both';
+    if (!applicantOk) return false;
 
-    // Check geography - must be National or include DC/MD/VA area
+    // Check geography from explicit field first
     const geo = grant.eligibleGeography?.toLowerCase() || '';
+    if (geo) {
+      return geo.includes('national') ||
+             geo.includes('dc') ||
+             geo.includes('maryland') ||
+             geo.includes('virginia') ||
+             geo.includes('mid-atlantic');
+    }
+
+    // No explicit geography - check eligibility text for state restrictions
+    const eligText = grant.eligibility?.toLowerCase() || '';
+    const orgName = grant.organizationName?.toLowerCase() || '';
     const loc = grant.location?.toLowerCase() || '';
-    const eligibilityText = grant.eligibility?.toLowerCase() || '';
 
-    // Consider it FMMC-eligible if:
-    // - eligibleGeography is National, DC, Maryland, Virginia, or DC-MD-VA
-    // - OR location includes DC, MD, VA (and no restrictive geography set)
-    // - OR no geography restrictions set (assume national)
-    const geoOk =
-      !grant.eligibleGeography || // No geography restriction = assume national
-      geo.includes('national') ||
-      geo.includes('dc') ||
-      geo.includes('maryland') ||
-      geo.includes('virginia') ||
-      geo.includes('mid-atlantic') ||
-      geo.includes('mid atlantic') ||
-      // Check if location-based funder in DC area (might fund locally)
-      (loc.includes('washington') || loc.includes('dc') || loc.includes('maryland') || loc.includes('virginia') || loc.includes('baltimore'));
+    // List of states that would exclude FMMC (DC-based org)
+    const otherStates = [
+      'california', 'new york state', 'ny-based', 'new york-based', 'nyc-based',
+      'texas', 'ohio', 'pennsylvania', 'pa-based', 'illinois', 'chicago',
+      'massachusetts', 'boston', 'michigan', 'detroit', 'florida', 'georgia', 'atlanta',
+      'north carolina', 'south carolina', 'alabama', 'louisiana', 'mississippi',
+      'tennessee', 'kentucky', 'arizona', 'colorado', 'oregon', 'seattle', 'washington state',
+      'minnesota', 'new jersey', 'connecticut', 'new england', 'philadelphia',
+      'staten island', 'brooklyn', 'queens', 'bronx', 'manhattan-based',
+      'pittsburgh', 'cleveland', 'indianapolis', 'houston', 'miami', 'denver',
+      'san francisco', 'los angeles', 'southern arts', 'south arts'
+    ];
 
-    return applicantOk && geoOk;
+    // Check if eligibility text mentions a specific non-DC state requirement
+    for (const state of otherStates) {
+      if (eligText.includes(state + '-based') ||
+          eligText.includes(state + ' based') ||
+          eligText.includes(state + '-incorporated') ||
+          eligText.includes('based in ' + state) ||
+          eligText.includes('located in ' + state) ||
+          eligText.includes(state + ' organizations') ||
+          eligText.includes(state + ' nonprofits') ||
+          eligText.includes(state + ' artists')) {
+        return false;
+      }
+    }
+
+    // Check org name for state-specific councils/foundations
+    const stateSpecificOrgs = [
+      'california arts', 'new york state council', 'nysca', 'pennsylvania council',
+      'ohio arts', 'texas commission', 'michigan arts', 'minnesota state arts',
+      'colorado creative', 'arizona commission', 'georgia council', 'florida division',
+      'massachusetts cultural', 'connecticut office', 'oregon arts', 'illinois arts',
+      'new jersey state', 'north carolina arts', 'south carolina arts',
+      'brooklyn arts', 'queens council', 'staten island', 'bronx council',
+      'lower manhattan', 'seattle office', 'san francisco arts', 'denver arts',
+      'houston arts', 'miami-dade', 'atlanta office', 'indianapolis',
+      'cleveland foundation', 'boston foundation', 'pittsburgh', 'detroit',
+      'south arts', 'new england foundation', 'arts midwest', 'westaf', 'western states'
+    ];
+
+    for (const org of stateSpecificOrgs) {
+      if (orgName.includes(org)) {
+        return false;
+      }
+    }
+
+    // DC/MD/VA area funders or national funders - FMMC eligible
+    const dcAreaIndicators = ['washington', 'dc', 'd.c.', 'maryland', 'virginia', 'baltimore', 'mid atlantic', 'mid-atlantic'];
+    const isLocalFunder = dcAreaIndicators.some(ind => loc.includes(ind));
+
+    // National funders (NEA, major foundations) or DC-area funders are eligible
+    const nationalIndicators = ['national', 'us-based', 'u.s.-based', 'nationwide', 'united states'];
+    const isNational = nationalIndicators.some(ind => eligText.includes(ind)) ||
+                       orgName.includes('national endowment') ||
+                       orgName.includes('nea ') ||
+                       grant.funderType === 'Private Foundation'; // Most private foundations fund nationally
+
+    return isLocalFunder || isNational;
   };
 
   // Load filter preferences from localStorage on mount
