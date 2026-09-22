@@ -21,7 +21,10 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    // Parse as local date to avoid timezone shift
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
   const getDaysUntilDeadline = (dateStr: string) => {
@@ -245,7 +248,10 @@ export default function GrantCard({ grant, showSaveButton = true }: GrantCardPro
             <div className="flex flex-wrap gap-4 pt-2 text-xs text-[var(--slate)]">
               {grant.lastVerified && (
                 <span className={isVerificationStale() ? 'text-orange-600' : ''}>
-                  Last verified: {new Date(grant.lastVerified).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  Last verified: {(() => {
+                    const [y, m, d] = grant.lastVerified.split('-').map(Number);
+                    return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                  })()}
                   {isVerificationStale() && ' (may be outdated)'}
                 </span>
               )}
