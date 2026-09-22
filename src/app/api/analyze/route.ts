@@ -327,8 +327,16 @@ ${pageContent.slice(0, 22000)}`
     if (!claudeResponse.ok) {
       const errText = await claudeResponse.text();
       console.error('Claude error:', errText);
+      // Parse error for user-friendly message
+      let errorMsg = 'AI error';
+      try {
+        const errJson = JSON.parse(errText);
+        errorMsg = errJson.error?.message || errJson.message || errText.slice(0, 200);
+      } catch {
+        errorMsg = errText.slice(0, 200);
+      }
       return NextResponse.json({
-        grant: generateBasicGrant(url, 'AI error'),
+        grant: generateBasicGrant(url, errorMsg),
         debug: 'claude_failed',
         error: errText
       });
